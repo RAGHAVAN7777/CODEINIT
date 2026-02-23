@@ -6,19 +6,39 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
 import { RoleToggle } from "../components/ui/RoleToggle";
+import { useAuth } from "../context/AuthContext";
 
 export default function Signup() {
     const [isLoading, setIsLoading] = useState(false);
     const [role, setRole] = useState("student");
+    const [formData, setFormData] = useState({ firstName: "", lastName: "", email: "", password: "" });
+    const [error, setError] = useState("");
     const navigate = useNavigate();
+    const { signup } = useAuth();
 
-    const handleSignup = (e) => {
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSignup = async (e) => {
         e.preventDefault();
         setIsLoading(true);
-        setTimeout(() => {
-            setIsLoading(false);
+        setError("");
+
+        const result = await signup({
+            name: `${formData.firstName} ${formData.lastName}`,
+            email: formData.email,
+            password: formData.password,
+            role: role
+        });
+
+        setIsLoading(false);
+        if (result.success) {
             navigate("/dashboard");
-        }, 1200);
+        } else {
+            setError(result.message);
+        }
     };
 
     return (
@@ -50,23 +70,44 @@ export default function Signup() {
                         <CardContent>
                             <form onSubmit={handleSignup} className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
-                                    <Input label="First Name" placeholder="John" required />
-                                    <Input label="Last Name" placeholder="Doe" required />
+                                    <Input
+                                        label="First Name"
+                                        placeholder="John"
+                                        name="firstName"
+                                        value={formData.firstName}
+                                        onChange={handleChange}
+                                        required
+                                    />
+                                    <Input
+                                        label="Last Name"
+                                        placeholder="Doe"
+                                        name="lastName"
+                                        value={formData.lastName}
+                                        onChange={handleChange}
+                                        required
+                                    />
                                 </div>
                                 <Input
                                     label="Email"
                                     placeholder="name@university.edu"
                                     type="email"
+                                    name="email"
+                                    value={formData.email}
+                                    onChange={handleChange}
                                     required
                                 />
                                 <Input
                                     label="Password"
                                     placeholder="••••••••"
                                     type="password"
+                                    name="password"
+                                    value={formData.password}
+                                    onChange={handleChange}
                                     required
+                                    error={error}
                                 />
-                                <Button type="submit" className="w-full py-2.5 mt-2">
-                                    {isLoading ? "Extending Catalyst..." : "Create Account"}
+                                <Button type="submit" className="w-full py-2.5 mt-2" isLoading={isLoading}>
+                                    {isLoading ? "Creating..." : "Create Account"}
                                 </Button>
                             </form>
                         </CardContent>

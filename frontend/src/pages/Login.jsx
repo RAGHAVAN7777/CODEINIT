@@ -16,20 +16,19 @@ export default function Login() {
     const navigate = useNavigate();
     const { login } = useAuth();
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
         setIsLoading(true);
         setError("");
 
-        setTimeout(() => {
-            setIsLoading(false);
-            if (credentials.email === "." && credentials.password === ".") {
-                login(role);
-                navigate("/dashboard");
-            } else {
-                setError("Invalid credentials. Hint: Use '.' for both fields.");
-            }
-        }, 800);
+        const result = await login(credentials.email, credentials.password, role);
+
+        setIsLoading(false);
+        if (result.success) {
+            navigate("/dashboard");
+        } else {
+            setError(result.message);
+        }
     };
 
     const handleChange = (e) => {
@@ -66,8 +65,8 @@ export default function Login() {
                         <CardContent>
                             <form onSubmit={handleLogin} className="space-y-4">
                                 <Input
-                                    label="Username / Email"
-                                    placeholder="Enter '.'"
+                                    label="Gmail"
+                                    placeholder="your@email.com"
                                     type="text"
                                     name="email"
                                     value={credentials.email}
@@ -77,7 +76,7 @@ export default function Login() {
                                 <div className="space-y-1">
                                     <Input
                                         label="Password"
-                                        placeholder="Enter '.'"
+                                        placeholder="••••••••"
                                         type="password"
                                         name="password"
                                         value={credentials.password}

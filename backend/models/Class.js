@@ -39,7 +39,7 @@ const classSchema = new mongoose.Schema(
 //
 
 // Fast lookup by class code
-classSchema.index({ class_code: 1 }, { unique: true });
+// classSchema.index({ class_code: 1 }, { unique: true }); // Redundant since unique: true is in schema
 
 // Faculty dashboard: get all classes created by faculty
 classSchema.index({ faculty_id: 1 });

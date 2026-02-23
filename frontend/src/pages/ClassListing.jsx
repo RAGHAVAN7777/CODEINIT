@@ -1,49 +1,37 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Search, Filter, Users, BookOpen, Plus, MoreHorizontal, LayoutGrid, Clock, Calendar } from "lucide-react";
 import { DashboardLayout } from "../layouts/DashboardLayout";
 import { Button } from "../components/ui/Button";
 import { Card, CardContent } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
 import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { classService } from "../services/class.service";
 
 export default function ClassListing() {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const isFaculty = user?.role?.toLowerCase() === "faculty";
+    const [classes, setClasses] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const facultyClasses = [
-        {
-            title: "Advanced Algorithms",
-            section: "CS401-B",
-            students: 42,
-            status: "Active",
-            schedule: "Mon, Wed • 10:00 AM",
-            room: "Lab 4, Innovation Center"
-        },
-        {
-            title: "Network Security",
-            section: "CS302-A",
-            students: 38,
-            status: "Inactive",
-            schedule: "Tue, Thu • 02:00 PM",
-            room: "Theory Hall 2"
-        },
-        {
-            title: "Cloud Scale Systems",
-            section: "CS505-C",
-            students: 124,
-            status: "Active",
-            schedule: "Friday • 09:00 AM",
-            room: "Main Auditorium"
-        },
-    ];
+    useEffect(() => {
+        const fetchClasses = async () => {
+            setIsLoading(true);
+            try {
+                const data = await classService.getMyClasses();
+                setClasses(data);
+            } catch (error) {
+                console.error("Failed to fetch classes:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
 
-    const studentCourses = [
-        { title: "Intro to Python", code: "CS101", instructor: "Dr. Miller", progress: 85 },
-        { title: "Discrete Math", code: "MAT200", instructor: "Prof. Zhang", progress: 60 },
-        { title: "UI/UX Design", code: "DES302", instructor: "Sarah Lee", progress: 95 },
-    ];
+        fetchClasses();
+    }, []);
 
-    const data = isFaculty ? facultyClasses : studentCourses;
+    const data = classes;
 
     return (
         <DashboardLayout>
@@ -65,52 +53,65 @@ export default function ClassListing() {
                 </header>
 
                 <div className="grid grid-cols-1 gap-4">
-                    {data.map((item, i) => (
-                        <Card key={i} className="hover:border-foreground/20 transition-all cursor-pointer group shadow-sm overflow-hidden border-border bg-card">
-                            <CardContent className="p-0">
-                                <div className="flex flex-col md:flex-row md:items-center justify-between p-6">
-                                    <div className="flex items-center gap-6">
-                                        <div className={`h-16 w-16 rounded-xl flex items-center justify-center transition-all ${isFaculty ? 'bg-foreground text-background shadow-md' : 'bg-primary text-primary-foreground'
-                                            }`}>
-                                            <BookOpen size={28} />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-bold text-xl group-hover:text-foreground tracking-tight">{item.title}</h3>
-                                            <div className="flex flex-wrap items-center gap-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-2">
-                                                <span className="text-foreground bg-muted px-2 py-0.5 rounded-sm">{isFaculty ? item.section : item.code}</span>
-                                                {isFaculty ? (
-                                                    <>
-                                                        <span className="flex items-center gap-1.5"><Users size={12} className="text-primary" /> {item.students} Enrolled</span>
-                                                        <span className="flex items-center gap-1.5"><Clock size={12} className="text-primary" /> {item.schedule}</span>
-                                                        <span className="flex items-center gap-1.5"><Calendar size={12} className="text-primary" /> {item.room}</span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <span className="opacity-30">•</span>
-                                                        <span>Instructor: {item.instructor}</span>
-                                                        <span className="opacity-30">•</span>
-                                                        <span className="text-primary font-black">Progress: {item.progress}%</span>
-                                                    </>
-                                                )}
+                    {isLoading ? (
+                        <div className="flex justify-center p-12">
+                            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                        </div>
+                    ) : classes.length === 0 ? (
+                        <div className="p-12 border border-dashed border-border rounded-lg text-center">
+                            <p className="text-muted-foreground font-medium">No courses found matching your profile.</p>
+                        </div>
+                    ) : (
+                        classes.map((item, i) => (
+                            <Card
+                                key={item._id}
+                                onClick={() => navigate(`/classes/${item._id}`)}
+                                className="hover:border-foreground/20 transition-all cursor-pointer group shadow-sm overflow-hidden border-border bg-card"
+                            >
+                                <CardContent className="p-0">
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between p-6">
+                                        <div className="flex items-center gap-6">
+                                            <div className={`h-16 w-16 rounded-xl flex items-center justify-center transition-all ${isFaculty ? 'bg-foreground text-background shadow-md' : 'bg-primary text-primary-foreground'
+                                                }`}>
+                                                <BookOpen size={28} />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-xl group-hover:text-foreground tracking-tight">{item.class_name}</h3>
+                                                <div className="flex flex-wrap items-center gap-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-2">
+                                                    <span className="text-foreground bg-muted px-2 py-0.5 rounded-sm">{item.class_code}</span>
+                                                    {isFaculty ? (
+                                                        <>
+                                                            <span className="flex items-center gap-1.5"><Users size={12} className="text-primary" /> {item.students?.length || 0} Enrolled</span>
+                                                            <span className="flex items-center gap-1.5"><Clock size={12} className="text-primary" /> Active Code: {item.class_code}</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <span className="opacity-30">•</span>
+                                                            <span>Instructor ID: {item.faculty_id}</span>
+                                                            <span className="opacity-30">•</span>
+                                                            <span className="text-primary font-black">Status: Enrolled</span>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
+                                        <div className="flex items-center gap-3 mt-4 md:mt-0">
+                                            <Button variant="outline" className="h-9 text-[10px] font-black uppercase tracking-widest px-6 border-border hover:bg-muted transition-all">
+                                                {isFaculty ? "Manage Section" : "Launch Course"}
+                                            </Button>
+                                            <Button variant="ghost" className="h-9 w-9 p-0 hover:bg-muted border border-transparent hover:border-border"><MoreHorizontal size={18} /></Button>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-3 mt-4 md:mt-0">
-                                        <Button variant="outline" className="h-9 text-[10px] font-black uppercase tracking-widest px-6 border-border hover:bg-muted transition-all">
-                                            {isFaculty ? "Manage Section" : "Launch Course"}
-                                        </Button>
-                                        <Button variant="ghost" className="h-9 w-9 p-0 hover:bg-muted border border-transparent hover:border-border"><MoreHorizontal size={18} /></Button>
+                                    <div className="h-1 w-full bg-muted">
+                                        <div
+                                            className={`h-full ${isFaculty ? 'bg-green-500' : 'bg-primary'}`}
+                                            style={{ width: '100%' }}
+                                        />
                                     </div>
-                                </div>
-                                <div className="h-1 w-full bg-muted">
-                                    <div
-                                        className={`h-full ${isFaculty ? (item.status === 'Active' ? 'bg-green-500' : 'bg-amber-500') : 'bg-primary'}`}
-                                        style={{ width: isFaculty ? '100%' : `${item.progress}%` }}
-                                    />
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
+                                </CardContent>
+                            </Card>
+                        ))
+                    )}
                 </div>
             </div>
         </DashboardLayout>

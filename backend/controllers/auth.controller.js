@@ -7,7 +7,9 @@ import generateToken from "../utils/generateToken.js";
 //
 export const register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    let { name, email, password, role } = req.body;
+
+    if (email) email = email.trim().toLowerCase();
 
     // Basic validation
     if (!name || !email || !password || !role) {
@@ -74,23 +76,39 @@ export const register = async (req, res) => {
 //
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    let { email, password, role } = req.body;
 
-    if (!email || !password) {
+    if (email) email = email.trim().toLowerCase();
+
+    console.log(`🔑 Login attempt for: ${email} as ${role}`);
+
+    if (!email || !password || !role) {
       return res.status(400).json({
         success: false,
-        message: "Email and password are required"
+        message: "Email, password, and role are required"
       });
     }
 
     // Find user
     const user = await User.findOne({ email });
     if (!user) {
+      console.log(`❌ User not found: ${email}`);
       return res.status(401).json({
         success: false,
         message: "Invalid credentials"
       });
     }
+
+    // Check role match
+    if (user.role !== role) {
+      console.log(`❌ Role mismatch for ${email}: Expected ${role}, got ${user.role}`);
+      return res.status(403).json({
+        success: false,
+        message: `Access denied: You are registered as a ${user.role}, not a ${role}.`
+      });
+    }
+
+    console.log(`✅ User found and role matches: ${user.email} (Role: ${user.role})`);
 
     // Compare password
     const isMatch = await bcrypt.compare(password, user.password_hash);

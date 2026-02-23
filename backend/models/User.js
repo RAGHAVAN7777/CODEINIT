@@ -44,7 +44,7 @@ const userSchema = new mongoose.Schema(
 //
 
 // Fast login lookup
-userSchema.index({ email: 1 }, { unique: true });
+// userSchema.index({ email: 1 }, { unique: true }); // Redundant since unique: true is in schema
 
 // Optional: speed up class membership queries
 userSchema.index({ classes: 1 });

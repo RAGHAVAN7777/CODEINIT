@@ -1,13 +1,54 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Users, FileText, Settings, Plus, ChevronRight, Zap } from "lucide-react";
 import { DashboardLayout } from "../layouts/DashboardLayout";
 import { Button } from "../components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
+import { classService } from "../services/class.service";
+import { useAuth } from "../context/AuthContext";
 
 export default function ClassView() {
     const { id } = useParams();
-    const userRole = "faculty";
+    const { user } = useAuth();
+    const [classData, setClassData] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const isFaculty = user?.role === "faculty";
+
+    useEffect(() => {
+        const fetchDetails = async () => {
+            setIsLoading(true);
+            try {
+                const data = await classService.getClassDetails(id);
+                setClassData(data);
+            } catch (error) {
+                console.error("Failed to fetch class details:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchDetails();
+    }, [id]);
+
+    if (isLoading) {
+        return (
+            <DashboardLayout>
+                <div className="flex items-center justify-center p-24">
+                    <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+            </DashboardLayout>
+        );
+    }
+
+    if (!classData) {
+        return (
+            <DashboardLayout>
+                <div className="p-12 text-center">
+                    <h2 className="text-xl font-bold">Class not found</h2>
+                    <Link to="/dashboard"><Button className="mt-4">Back to Dashboard</Button></Link>
+                </div>
+            </DashboardLayout>
+        );
+    }
 
     return (
         <DashboardLayout>
@@ -17,14 +58,14 @@ export default function ClassView() {
                         <Link to="/classes"><Button variant="outline" className="h-10 w-10 p-0 rounded-full"><ArrowLeft size={18} /></Button></Link>
                         <div>
                             <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground mb-1 uppercase tracking-widest">
-                                <span>Classes</span><ChevronRight size={10} /><span>CS401</span>
+                                <span>Classes</span><ChevronRight size={10} /><span>{classData.class_code}</span>
                             </div>
-                            <h1 className="text-3xl font-bold tracking-tight">Advanced Algorithms</h1>
+                            <h1 className="text-3xl font-bold tracking-tight">{classData.class_name}</h1>
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" className="text-xs px-3 h-9"><Users size={16} /> Students</Button>
-                        {userRole === "faculty" && <Button className="text-xs px-3 h-9"><Settings size={16} /> Manage</Button>}
+                        <Button variant="outline" className="text-xs px-3 h-9"><Users size={16} /> {classData.students?.length || 0} Students</Button>
+                        {isFaculty && <Button className="text-xs px-3 h-9"><Settings size={16} /> Manage</Button>}
                     </div>
                 </header>
 
@@ -61,8 +102,8 @@ export default function ClassView() {
                                 <h3 className="text-xs font-bold uppercase tracking-widest text-foreground">Class Details</h3>
                             </CardHeader>
                             <CardContent className="pt-4 space-y-4">
-                                <div className="flex justify-between text-xs font-medium"><span className="text-muted-foreground">Class ID</span><span>#ALG-401</span></div>
-                                <div className="flex justify-between text-xs font-medium"><span className="text-muted-foreground">Instructor</span><span className="font-semibold">Prof. Anderson</span></div>
+                                <div className="flex justify-between text-xs font-medium"><span className="text-muted-foreground">Class Code</span><span className="font-mono">{classData.class_code}</span></div>
+                                <div className="flex justify-between text-xs font-medium"><span className="text-muted-foreground">Instructor ID</span><span className="font-mono text-[10px]">{classData.faculty_id?._id || classData.faculty_id}</span></div>
                                 <div className="flex justify-between text-xs font-medium"><span className="text-muted-foreground">Status</span><span className="text-green-600 font-bold uppercase tracking-tighter">Active</span></div>
                             </CardContent>
                         </Card>

@@ -141,6 +141,79 @@ export const getClass = async (req, res) => {
 
 
 //
+// 🟢 JOIN CLASS (Student Only)
+//
+export const joinClass = async (req, res) => {
+  try {
+    const { class_code } = req.body;
+
+    if (!class_code) {
+      return res.status(400).json({
+        success: false,
+        message: "Class code is required"
+      });
+    }
+
+    const classData = await Class.findOne({ class_code: class_code.toUpperCase() });
+
+    if (!classData) {
+      return res.status(404).json({
+        success: false,
+        message: "Invalid class code"
+      });
+    }
+
+    // Role check (redundant if route is protected but good for safety)
+    if (req.user.role !== "student") {
+      return res.status(403).json({
+        success: false,
+        message: "Only students can join classes"
+      });
+    }
+
+    // Prevent duplicates
+    const alreadyJoined = classData.students.some(id =>
+      id.equals(req.user._id)
+    );
+
+    if (alreadyJoined) {
+      return res.status(400).json({
+        success: false,
+        message: "You are already a member of this class"
+      });
+    }
+
+    if (classData.students.length >= 65) {
+      return res.status(400).json({
+        success: false,
+        message: "Class is full"
+      });
+    }
+
+    // Update both sides
+    classData.students.push(req.user._id);
+    const student = await User.findById(req.user._id);
+    student.classes.push(classData._id);
+
+    await classData.save();
+    await student.save();
+
+    res.json({
+      success: true,
+      message: `Successfully joined ${classData.class_name}`,
+      data: classData
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+
+//
 // 🟢 GET MY CLASSES
 //
 export const getMyClasses = async (req, res) => {
