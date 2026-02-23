@@ -12,6 +12,6 @@ export const authService = {
     },
 
     logout: () => {
-        localStorage.removeItem("user");
+        sessionStorage.removeItem("user");
     }
 };

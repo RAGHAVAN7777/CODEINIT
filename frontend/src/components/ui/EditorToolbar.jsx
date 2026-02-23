@@ -14,7 +14,7 @@ import {
     Code
 } from 'lucide-react';
 
-export const EditorToolbar = ({ onCommand }) => {
+export const EditorToolbar = ({ onCommand, onAlert }) => {
     const [activeStates, setActiveStates] = useState({});
 
     const updateActiveStates = () => {
@@ -68,7 +68,7 @@ export const EditorToolbar = ({ onCommand }) => {
             {/* Misc */}
             <div className="flex items-center gap-0.5 pl-2 border-r border-slate-300 pr-2">
                 <ToolbarButton icon={Quote} onClick={() => executeCommand('formatBlock', '<blockquote>')} />
-                <ToolbarButton icon={ImageIcon} onClick={() => alert('Image Upload System Integrated')} />
+                <ToolbarButton icon={ImageIcon} onClick={() => onAlert('Image Upload System Integrated')} />
             </div>
 
             {/* Big Feature: Code Snippet */}

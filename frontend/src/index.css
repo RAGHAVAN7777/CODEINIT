@@ -92,17 +92,17 @@
         @apply text-muted-foreground/30 pointer-events-none absolute;
     }
 
-    /* CODE SNIPPET STYLES - FULLY INTEGRATED IN-BOX UI */
+    /* CODE SNIPPET STYLES - LIGHT THEME INTEGRATED */
     .snippet-container {
-        @apply !my-12 bg-slate-900 dark:bg-slate-950 rounded-2xl border border-border shadow-premium relative flex flex-col overflow-hidden !block;
+        @apply !my-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-border shadow-premium relative flex flex-col overflow-hidden !block;
     }
 
     .snippet-header {
-        @apply flex flex-row items-center justify-between px-6 py-3 bg-muted/50 border-b border-border;
+        @apply flex flex-row items-center justify-between px-6 py-3 bg-slate-200/50 dark:bg-slate-800/50 border-b border-border;
     }
 
     .snippet-label {
-        @apply text-[9px] font-black uppercase tracking-[0.4em] text-foreground/40;
+        @apply text-[9px] font-black uppercase tracking-[0.4em] text-slate-500 dark:text-slate-400;
     }
 
     .snippet-controls {
@@ -110,7 +110,7 @@
     }
 
     .snippet-btn {
-        @apply p-1.5 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/10 transition-all cursor-pointer flex items-center justify-center;
+        @apply p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-all cursor-pointer flex items-center justify-center;
     }
 
     .snippet-btn.delete {
@@ -118,13 +118,13 @@
     }
 
     .snippet-box {
-        @apply !w-full !min-h-[160px] bg-transparent text-foreground !p-8 !font-mono !text-sm !leading-loose !border-none;
+        @apply !w-full !min-h-[160px] bg-transparent text-slate-900 dark:text-slate-100 !p-8 !font-mono !text-sm !leading-loose !border-none;
         font-family: 'JetBrains Mono', 'Fira Code', monospace;
         outline: none !important;
     }
 
     .snippet-present {
-        @apply !hidden !w-full !min-h-[160px] bg-transparent text-foreground !p-10 !rounded-2xl !border-none;
+        @apply !hidden !w-full !min-h-[160px] bg-transparent text-slate-900 dark:text-slate-100 !p-10 !rounded-2xl !border-none;
     }
 
     .snippet-present.active {
@@ -141,6 +141,6 @@
 
     .snippet-box:empty::before {
         content: "Enter content here...";
-        @apply text-foreground/10 italic;
+        @apply text-slate-400/30 italic;
     }
 }

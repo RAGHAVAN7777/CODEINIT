@@ -7,7 +7,11 @@ import { Input } from "../components/ui/Input";
 import { useNavigate } from "react-router-dom";
 import { Modal } from "../components/ui/Modal";
 import { classService } from "../services/class.service";
+import { noteService } from "../services/note.service";
 import { useAuth } from "../context/AuthContext";
+import { AnnouncementBox } from "../components/AnnouncementBox";
+
+// ... NoteCard ...
 
 const NoteCard = ({ title, course, date }) => (
     <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-card hover:bg-muted/30 transition-all cursor-pointer group">
@@ -28,7 +32,7 @@ const NoteCard = ({ title, course, date }) => (
 );
 
 export default function StudentDashboard() {
-    const { user } = useAuth();
+    const { user, studyTime } = useAuth();
     const navigate = useNavigate();
     const [classes, setClasses] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -36,18 +40,29 @@ export default function StudentDashboard() {
     const [classCode, setClassCode] = useState("");
     const [isJoining, setIsJoining] = useState(false);
     const [error, setError] = useState("");
+    const [notesCount, setNotesCount] = useState(0);
+
+    const formatStudyTime = (minutes) => {
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    };
 
     useEffect(() => {
-        fetchClasses();
+        fetchData();
     }, []);
 
-    const fetchClasses = async () => {
+    const fetchData = async () => {
         setIsLoading(true);
         try {
-            const data = await classService.getMyClasses();
-            setClasses(data);
+            const [classesData, notesData] = await Promise.all([
+                classService.getMyClasses(),
+                noteService.getNotes()
+            ]);
+            setClasses(classesData);
+            setNotesCount(notesData.length);
         } catch (error) {
-            console.error("Failed to fetch classes:", error);
+            console.error("Failed to fetch dashboard data:", error);
         } finally {
             setIsLoading(false);
         }
@@ -63,12 +78,26 @@ export default function StudentDashboard() {
             await classService.joinClass(classCode);
             setClassCode("");
             setIsJoinModalOpen(false);
-            fetchClasses();
+            fetchData();
         } catch (err) {
             setError(err.response?.data?.message || "Failed to join class. Please check the code.");
         } finally {
             setIsJoining(false);
         }
+    };
+
+    const getStudentRank = () => {
+        if (!classes.length || !user) return "-";
+
+        let bestRank = Infinity;
+        classes.forEach(cls => {
+            const myGrade = cls.grades?.find(g => (g.student_id === user._id || g.student_id?._id === user._id));
+            if (myGrade && myGrade.rank > 0 && myGrade.rank < bestRank) {
+                bestRank = myGrade.rank;
+            }
+        });
+
+        return bestRank === Infinity ? "-" : `#${bestRank}`;
     };
 
     return (
@@ -93,9 +122,9 @@ export default function StudentDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {[
                         { label: "Joined Classes", value: classes.length, icon: GraduationCap },
-                        { label: "Shared Notes", value: "0", icon: FileText },
-                        { label: "Study Time", value: "0h", icon: Clock },
-                        { label: "Global Rank", value: "-", icon: Trophy },
+                        { label: "Shared Notes", value: notesCount.toString(), icon: FileText },
+                        { label: "Study Time", value: formatStudyTime(studyTime), icon: Clock },
+                        { label: "Rank", value: getStudentRank(), icon: Trophy },
                     ].map((stat, i) => (
                         <Card key={i} className="p-4">
                             <div className="flex items-center gap-3 mb-3">
@@ -111,7 +140,7 @@ export default function StudentDashboard() {
                     <Card className="lg:col-span-2">
                         <CardHeader className="flex flex-row items-center justify-between pb-4">
                             <CardTitle className="text-lg">My Classes</CardTitle>
-                            <Button variant="ghost" className="text-xs" onClick={() => fetchClasses()}>Refresh</Button>
+                            <Button variant="ghost" className="text-xs" onClick={() => fetchData()}>Refresh</Button>
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {isLoading ? (
@@ -126,39 +155,47 @@ export default function StudentDashboard() {
                                     </Button>
                                 </div>
                             ) : (
-                                classes.map((cls) => (
-                                    <div
-                                        key={cls._id}
-                                        onClick={() => navigate(`/classes/${cls._id}`)}
-                                        className="flex items-center justify-between p-4 border border-border rounded-lg bg-card hover:bg-muted/30 transition-all cursor-pointer group"
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className="h-10 w-10 bg-primary text-primary-foreground rounded flex items-center justify-center font-bold">
-                                                {cls.class_name.charAt(0).toUpperCase()}
+                                classes.map((cls) => {
+                                    const myGrade = cls.grades?.find(g => (g.student_id === user._id || g.student_id?._id === user._id));
+                                    return (
+                                        <div
+                                            key={cls._id}
+                                            onClick={() => navigate(`/classes/${cls._id}`)}
+                                            className="flex items-center justify-between p-4 border border-border rounded-lg bg-card hover:bg-muted/30 transition-all cursor-pointer group"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="h-10 w-10 bg-primary text-primary-foreground rounded flex items-center justify-center font-bold">
+                                                    {myGrade?.rank > 0 ? `#${myGrade.rank}` : cls.class_name.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-semibold text-foreground">{cls.class_name}</p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-[10px] text-muted-foreground uppercase font-black">ID:</span>
+                                                        <span className="bg-muted px-1.5 py-0.5 rounded text-[10px] text-foreground font-mono font-bold border border-border/30">
+                                                            {cls.class_code}
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="text-sm font-semibold text-foreground">{cls.class_name}</p>
-                                                <p className="text-xs text-muted-foreground">Code: {cls.class_code}</p>
+                                            <div className="flex items-center gap-4">
+                                                {myGrade && (
+                                                    <div className="text-right mr-4">
+                                                        <p className="text-[10px] text-muted-foreground uppercase font-black">Performance</p>
+                                                        <p className="text-xs font-bold text-primary">{myGrade.average?.toFixed(1) || "0.0"}%</p>
+                                                    </div>
+                                                )}
+                                                <Button variant="outline" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    Open
+                                                </Button>
                                             </div>
                                         </div>
-                                        <Button variant="outline" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                            Open
-                                        </Button>
-                                    </div>
-                                ))
+                                    );
+                                })
                             )}
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader className="pb-4">
-                            <CardTitle className="text-lg">Recent Resources</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <p className="text-xs text-muted-foreground italic">No recent resources released yet.</p>
-                            <Button variant="outline" className="w-full mt-4 text-xs">Manage Vault</Button>
-                        </CardContent>
-                    </Card>
+                    <AnnouncementBox />
                 </div>
             </div>
 

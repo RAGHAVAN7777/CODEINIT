@@ -24,6 +24,18 @@ const noteSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true
+    },
+
+    visibility: {
+      type: String,
+      enum: ["personal", "public", "student-only"],
+      default: "personal"
+    },
+
+    collaboration_mode: {
+      type: String,
+      enum: ["readonly", "editable"],
+      default: "readonly"
     }
   },
   {

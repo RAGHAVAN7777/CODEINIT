@@ -1,12 +1,13 @@
 import Note from "../models/Note.js";
 import Class from "../models/Class.js";
+import Notification from "../models/Notification.js";
 
 //
 // 🟢 CREATE NOTE (Personal or Class)
 //
 export const createNote = async (req, res) => {
   try {
-    const { title, content, class_id } = req.body;
+    const { title, content, class_id, visibility, collaboration_mode } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({
@@ -14,6 +15,8 @@ export const createNote = async (req, res) => {
         message: "Title and content are required"
       });
     }
+
+    let finalVisibility = visibility || (class_id ? "public" : "personal");
 
     // If it's a class note
     if (class_id) {
@@ -45,18 +48,57 @@ export const createNote = async (req, res) => {
         if (!classData.faculty_id.equals(req.user._id)) {
           return res.status(403).json({
             success: false,
-            message: "Not authorized"
+            message: "Not authorized to post in this class"
           });
         }
+        // Faculty cannot create student-only notes
+        if (finalVisibility === "student-only") {
+          finalVisibility = "public";
+        }
       }
+    } else {
+      // If no class_id, it must be personal
+      finalVisibility = "personal";
     }
 
     const note = await Note.create({
       title,
       content,
       class_id: class_id || null,
-      uploaded_by: req.user._id
+      uploaded_by: req.user._id,
+      visibility: finalVisibility,
+      collaboration_mode: collaboration_mode || "readonly"
     });
+
+    // Create notifications for class notes
+    if (class_id && finalVisibility !== "personal") {
+      const classData = await Class.findById(class_id);
+      if (classData) {
+        let recipients = [];
+        if (finalVisibility === "student-only") {
+          recipients = classData.students.filter(id => !id.equals(req.user._id));
+        } else {
+          // Public: all students + faculty (if not author)
+          recipients = classData.students.filter(id => !id.equals(req.user._id));
+          if (!classData.faculty_id.equals(req.user._id)) {
+            recipients.push(classData.faculty_id);
+          }
+        }
+
+        const notifications = recipients.map(userId => ({
+          recipient: userId,
+          sender: req.user._id,
+          title: "New Academic Fragment",
+          message: `${req.user.name} shared a note: ${title}`,
+          type: "note_shared",
+          link: `/notes`
+        }));
+
+        if (notifications.length > 0) {
+          await Notification.insertMany(notifications);
+        }
+      }
+    }
 
     res.status(201).json(note);
 
@@ -74,12 +116,36 @@ export const createNote = async (req, res) => {
 //
 export const getNotes = async (req, res) => {
   try {
-    const notes = await Note.find({
-      $or: [
-        { uploaded_by: req.user._id, class_id: null },
-        { class_id: { $in: req.user.classes } }
-      ]
-    }).sort({ createdAt: -1 });
+    let query;
+
+    if (req.user.role === "faculty") {
+      // Faculty behavior:
+      // 1. Any note they uploaded (Personal OR Class)
+      // 2. Any note in a class they manage EXCEPT student-only ones
+      const facultyClasses = await Class.find({ faculty_id: req.user._id }).select("_id");
+      const classIds = facultyClasses.map(c => c._id);
+
+      query = {
+        $or: [
+          { uploaded_by: req.user._id }, // Their own notes
+          { class_id: { $in: classIds }, visibility: "public" } // Public notes in their classes
+        ]
+      };
+    } else {
+      // Student behavior:
+      // 1. Personal notes (class_id: null)
+      // 2. Class notes in enrolled classes (both public and student-only)
+      query = {
+        $or: [
+          { uploaded_by: req.user._id, class_id: null },
+          { class_id: { $in: req.user.classes } }
+        ]
+      };
+    }
+
+    const notes = await Note.find(query)
+      .populate("uploaded_by", "name email")
+      .sort({ createdAt: -1 });
 
     res.json(notes);
 
@@ -97,6 +163,83 @@ export const getNotes = async (req, res) => {
 //
 export const getNote = async (req, res) => {
   try {
+    const note = await Note.findById(req.params.noteId).populate("uploaded_by", "name email role");
+
+    if (!note) {
+      return res.status(404).json({
+        success: false,
+        message: "Note not found"
+      });
+    }
+
+    const isOwner = note.uploaded_by._id.equals(req.user._id);
+
+    if (note.visibility === "personal") {
+      // Personal note: only owner
+      if (!isOwner) {
+        return res.status(403).json({
+          success: false,
+          message: "Forbidden: Only uploader can access personal notes"
+        });
+      }
+    } else if (note.visibility === "student-only") {
+      // Student-only: members in class EXCEPT faculty
+      if (req.user.role === "faculty") {
+        return res.status(403).json({
+          success: false,
+          message: "Forbidden: Faculty cannot access student-only notes"
+        });
+      }
+
+      const inClass = req.user.classes.some(
+        id => id.toString() === note.class_id.toString()
+      );
+
+      if (!isOwner && !inClass) {
+        return res.status(403).json({
+          success: false,
+          message: "Forbidden: You are not a member of this class"
+        });
+      }
+    } else {
+      // Public Class note: members or class faculty
+      const inClass = req.user.classes.some(
+        id => id.toString() === note.class_id.toString()
+      );
+
+      let isClassFaculty = false;
+      if (req.user.role === "faculty") {
+        const classData = await Class.findById(note.class_id);
+        if (classData && classData.faculty_id.equals(req.user._id)) {
+          isClassFaculty = true;
+        }
+      }
+
+      if (!isOwner && !inClass && !isClassFaculty) {
+        return res.status(403).json({
+          success: false,
+          message: "Forbidden: Access denied"
+        });
+      }
+    }
+
+    res.json(note);
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+
+//
+// 🟢 UPDATE NOTE
+//
+export const updateNote = async (req, res) => {
+  try {
+    const { title, content, visibility, collaboration_mode } = req.body;
     const note = await Note.findById(req.params.noteId);
 
     if (!note) {
@@ -108,27 +251,57 @@ export const getNote = async (req, res) => {
 
     const isOwner = note.uploaded_by.equals(req.user._id);
 
-    if (!note.class_id) {
-      // Personal note
-      if (!isOwner) {
+    // Visibility Check (Copy of getNote logic for simplicity)
+    const canAccess = async () => {
+      if (note.visibility === "personal") return isOwner;
+      if (note.visibility === "student-only") {
+        if (req.user.role === "faculty") return false;
+        return req.user.classes.some(id => id.toString() === note.class_id.toString());
+      }
+      // Public
+      const inClass = req.user.classes.some(id => id.toString() === note.class_id.toString());
+      let isClassFaculty = false;
+      if (req.user.role === "faculty") {
+        const classData = await Class.findById(note.class_id);
+        if (classData && classData.faculty_id.equals(req.user._id)) {
+          isClassFaculty = true;
+        }
+      }
+      return inClass || isClassFaculty || isOwner;
+    };
+
+    if (!(await canAccess())) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: Access denied"
+      });
+    }
+
+    // Edit permission check:
+    // Only owner can update visibility or collaboration_mode.
+    // Collaboration must be 'editable' for others to update content.
+    if (!isOwner) {
+      if (note.collaboration_mode !== "editable") {
         return res.status(403).json({
           success: false,
-          message: "Forbidden"
+          message: "Forbidden: This note is read-only"
         });
       }
-    } else {
-      // Class note
-      const inClass = req.user.classes.some(
-        id => id.toString() === note.class_id.toString()
-      );
-
-      if (!isOwner && !inClass) {
+      // Non-owners can only update content
+      if (visibility || collaboration_mode || title) {
         return res.status(403).json({
           success: false,
-          message: "Forbidden"
+          message: "Only the owner can update settings"
         });
       }
     }
+
+    if (title) note.title = title;
+    if (content) note.content = content;
+    if (visibility && isOwner) note.visibility = visibility;
+    if (collaboration_mode && isOwner) note.collaboration_mode = collaboration_mode;
+
+    await note.save();
 
     res.json(note);
 

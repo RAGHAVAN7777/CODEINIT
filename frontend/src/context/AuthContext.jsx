@@ -6,16 +6,33 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(() => {
-        const savedUser = localStorage.getItem("user");
+        const savedUser = sessionStorage.getItem("user");
         return savedUser ? JSON.parse(savedUser) : null;
     });
+
+    const [studyTime, setStudyTime] = useState(() => {
+        const savedTime = sessionStorage.getItem("studyTime");
+        return savedTime ? parseInt(savedTime, 10) : 0;
+    });
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setStudyTime(prev => {
+                const newTime = prev + 1;
+                sessionStorage.setItem("studyTime", newTime.toString());
+                return newTime;
+            });
+        }, 60000); // Increment every minute
+
+        return () => clearInterval(timer);
+    }, []);
 
     const login = async (email, password, role) => {
         try {
             const data = await authService.login(email, password, role);
             const userData = { ...data.user, token: data.token };
             setUser(userData);
-            localStorage.setItem("user", JSON.stringify(userData));
+            sessionStorage.setItem("user", JSON.stringify(userData));
             return { success: true };
         } catch (error) {
             return {
@@ -30,7 +47,7 @@ export const AuthProvider = ({ children }) => {
             const data = await authService.register(userData);
             const authData = { ...data.user, token: data.token };
             setUser(authData);
-            localStorage.setItem("user", JSON.stringify(authData));
+            sessionStorage.setItem("user", JSON.stringify(authData));
             return { success: true };
         } catch (error) {
             return {
@@ -46,7 +63,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, signup, logout }}>
+        <AuthContext.Provider value={{ user, login, signup, logout, studyTime }}>
             {children}
         </AuthContext.Provider>
     );

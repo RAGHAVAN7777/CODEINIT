@@ -27,6 +27,17 @@ const classSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.ObjectId,
         ref: "User"
       }
+    ],
+    grades: [
+      {
+        student_id: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User"
+        },
+        scores: [Number],
+        average: { type: Number, default: 0 },
+        rank: { type: Number, default: 0 }
+      }
     ]
   },
   {

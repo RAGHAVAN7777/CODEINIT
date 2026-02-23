@@ -45,11 +45,13 @@ export default function ClassListing() {
                             {isFaculty ? "Master overview of your academic workloads" : "Your active academic journey and progress"}
                         </p>
                     </div>
-                    <div className="flex gap-3">
-                        <Button className="px-6 h-10 font-bold uppercase tracking-tighter shadow-lg shadow-primary/10">
-                            <Plus size={18} /> {isFaculty ? "New Course" : "Enrollment Code"}
-                        </Button>
-                    </div>
+                    {isFaculty && (
+                        <div className="flex gap-3">
+                            <Button className="px-6 h-10 font-bold uppercase tracking-tighter shadow-lg shadow-primary/10">
+                                <Plus size={18} /> New Course
+                            </Button>
+                        </div>
+                    )}
                 </header>
 
                 <div className="grid grid-cols-1 gap-4">
@@ -71,7 +73,7 @@ export default function ClassListing() {
                                 <CardContent className="p-0">
                                     <div className="flex flex-col md:flex-row md:items-center justify-between p-6">
                                         <div className="flex items-center gap-6">
-                                            <div className={`h-16 w-16 rounded-xl flex items-center justify-center transition-all ${isFaculty ? 'bg-foreground text-background shadow-md' : 'bg-primary text-primary-foreground'
+                                            <div className={`h-16 w-16 rounded-xl flex items-center justify-center transition-all ${isFaculty ? 'bg-muted text-foreground border border-border' : 'bg-primary text-primary-foreground'
                                                 }`}>
                                                 <BookOpen size={28} />
                                             </div>

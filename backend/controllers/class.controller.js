@@ -239,3 +239,128 @@ export const getMyClasses = async (req, res) => {
     });
   }
 };
+//
+// 🔴 DELETE CLASS (Faculty Only)
+//
+export const deleteClass = async (req, res) => {
+  try {
+    const { classId } = req.params;
+
+    const classData = await Class.findById(classId);
+    if (!classData) {
+      return res.status(404).json({
+        success: false,
+        message: "Class not found"
+      });
+    }
+
+    // Security check: Only the owning faculty can delete
+    if (!classData.faculty_id.equals(req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: You are not the owner of this class"
+      });
+    }
+
+    // Step 1: Remove class ID from all students' classes array
+    await User.updateMany(
+      { _id: { $in: classData.students } },
+      { $pull: { classes: classId } }
+    );
+
+    // Step 2: Delete the class document
+    await Class.findByIdAndDelete(classId);
+
+    res.json({
+      success: true,
+      message: "Class and all associations deleted successfully"
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+//
+// 🟢 GRADE STUDENT & AUTO-RANK (Faculty Only)
+//
+export const gradeStudent = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { studentId, score } = req.body;
+
+    if (!studentId || score === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "Student ID and score are required"
+      });
+    }
+
+    const classData = await Class.findById(classId);
+    if (!classData) {
+      return res.status(404).json({
+        success: false,
+        message: "Class not found"
+      });
+    }
+
+    // Security check
+    if (!classData.faculty_id.equals(req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: Only the faculty owner can grade students"
+      });
+    }
+
+    // Find student in grades array
+    let studentGrade = classData.grades.find(g => g.student_id.equals(studentId));
+
+    if (!studentGrade) {
+      // Create new entry if doesn't exist
+      studentGrade = {
+        student_id: studentId,
+        scores: [score],
+        average: score,
+        rank: 0
+      };
+      classData.grades.push(studentGrade);
+    } else {
+      // Update existing entry
+      studentGrade.scores.push(score);
+      const sum = studentGrade.scores.reduce((a, b) => a + b, 0);
+      studentGrade.average = sum / studentGrade.scores.length;
+    }
+
+    // --- AUTO-RANKING LOGIC ---
+    // Sort students by average descending
+    const sortedGrades = classData.grades
+      .filter(g => g.scores.length > 0)
+      .sort((a, b) => b.average - a.average);
+
+    // Assign ranks
+    sortedGrades.forEach((g, index) => {
+      // Handle ties (same average = same rank)
+      if (index > 0 && g.average === sortedGrades[index - 1].average) {
+        g.rank = sortedGrades[index - 1].rank;
+      } else {
+        g.rank = index + 1;
+      }
+    });
+
+    await classData.save();
+
+    res.json({
+      success: true,
+      message: "Grade recorded and ranks updated",
+      grades: classData.grades
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};

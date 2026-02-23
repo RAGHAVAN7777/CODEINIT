@@ -23,7 +23,7 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
     const studentItems = [
         { icon: LayoutDashboard, label: 'Overview', path: '/dashboard' },
         { icon: BookOpen, label: 'Courses', path: '/classes' },
-        { icon: Settings, label: 'Vault', path: '/notes' },
+        { icon: FilePlus, label: 'Resources', path: '/notes' },
     ];
 
     const menuItems = user?.role === 'faculty' ? facultyItems : studentItems;
