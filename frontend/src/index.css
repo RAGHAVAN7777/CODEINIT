@@ -1,68 +1,146 @@
+@import "tailwindcss";
+
+@theme {
+    /* Core Semantic Tokens */
+    --color-border: var(--border);
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+
+    /* Elevation */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-premium: 0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+
+    --radius-lg: 0.75rem;
+    --radius-md: 0.5rem;
+    --radius-sm: 0.25rem;
+}
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+    /* LIGHT MODE */
+    --background: #ffffff;
+    --foreground: #0f172a;
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+    --border: #e2e8f0;
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
+    --primary: #0f172a;
+    --primary-foreground: #ffffff;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+.dark {
+    /* DARK MODE */
+    --background: #020617;
+    --foreground: #f1f5f9;
+    --card: #0f172a;
+    --card-foreground: #f1f5f9;
+    --border: #1e293b;
+    --muted: #1e293b;
+    --muted-foreground: #94a3b8;
+    --primary: #f8fafc;
+    --primary-foreground: #020617;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
+@layer base {
+    body {
+        @apply bg-background text-foreground transition-colors duration-300 antialiased;
+        font-family: 'Inter', system-ui, sans-serif;
+    }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
+    /* Rich Text Editor Content Styles */
+    [contenteditable] h1 {
+        @apply !text-4xl !font-black !mb-6 !uppercase !block !mt-8;
+    }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+    [contenteditable] h2 {
+        @apply !text-2xl !font-black !mb-4 !uppercase !block !mt-6;
+    }
+
+    [contenteditable] h3 {
+        @apply !text-xl !font-bold !mb-3 !uppercase !block !mt-4;
+    }
+
+    [contenteditable] blockquote {
+        @apply !border-l-4 !border-primary !bg-primary/5 !px-6 !py-4 !italic !text-muted-foreground !my-6 !rounded-r-md !block;
+    }
+
+    [contenteditable] ul {
+        @apply !list-disc !list-inside !space-y-2 !my-4 !block !pl-4;
+    }
+
+    [contenteditable] ol {
+        @apply !list-decimal !list-inside !space-y-2 !my-4 !block !pl-4;
+    }
+
+    [contenteditable] p {
+        @apply !mb-4 !leading-relaxed !block;
+    }
+
+    [contenteditable]:empty::before {
+        content: "Drafting...";
+        @apply text-muted-foreground/30 pointer-events-none absolute;
+    }
+
+    /* CODE SNIPPET STYLES - FULLY INTEGRATED IN-BOX UI */
+    .snippet-container {
+        @apply !my-12 bg-slate-900 dark:bg-slate-950 rounded-2xl border border-border shadow-premium relative flex flex-col overflow-hidden !block;
+    }
+
+    .snippet-header {
+        @apply flex flex-row items-center justify-between px-6 py-3 bg-muted/50 border-b border-border;
+    }
+
+    .snippet-label {
+        @apply text-[9px] font-black uppercase tracking-[0.4em] text-foreground/40;
+    }
+
+    .snippet-controls {
+        @apply flex flex-row items-center gap-2;
+    }
+
+    .snippet-btn {
+        @apply p-1.5 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/10 transition-all cursor-pointer flex items-center justify-center;
+    }
+
+    .snippet-btn.delete {
+        @apply hover:text-red-500 hover:bg-red-500/10;
+    }
+
+    .snippet-box {
+        @apply !w-full !min-h-[160px] bg-transparent text-foreground !p-8 !font-mono !text-sm !leading-loose !border-none;
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        outline: none !important;
+    }
+
+    .snippet-present {
+        @apply !hidden !w-full !min-h-[160px] bg-transparent text-foreground !p-10 !rounded-2xl !border-none;
+    }
+
+    .snippet-present.active {
+        @apply !flex !items-center !justify-center !text-center;
+    }
+
+    .snippet-box.hidden {
+        @apply !hidden;
+    }
+
+    .snippet-present .formula-text {
+        @apply text-3xl font-medium tracking-tight leading-loose italic;
+    }
+
+    .snippet-box:empty::before {
+        content: "Enter content here...";
+        @apply text-foreground/10 italic;
+    }
 }
