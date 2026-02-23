@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Search, Filter, FileText, Download, MoreVertical, Plus, ChevronDown, Check } from "lucide-react";
+import { Search, Filter, FileText, Download, MoreVertical, Plus, ChevronDown, Check, Paperclip } from "lucide-react";
 import { DashboardLayout } from "../layouts/DashboardLayout";
 import { Button } from "../components/ui/Button";
 import { Card, CardContent } from "../components/ui/Card";
@@ -17,6 +17,7 @@ export default function NotesListing() {
     const isFaculty = user?.role?.toLowerCase() === "faculty";
     const [isEditorOpen, setIsEditorOpen] = useState(false);
     const editorRef = useRef(null);
+    const fileInputRef = useRef(null);
 
     // Real Data State
     const [notes, setNotes] = useState([]);
@@ -30,8 +31,20 @@ export default function NotesListing() {
     const [selectedClassId, setSelectedClassId] = useState(null); // null means Personal Note
     const [visibility, setVisibility] = useState("personal");
     const [collaborationMode, setCollaborationMode] = useState("readonly");
+    const [attachmentFile, setAttachmentFile] = useState(null);
     const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false);
     const [alert, setAlert] = useState(null);
+
+    const getAttachmentUrl = (note) => {
+        if (!note?.attachment_url) return null;
+        const apiBase = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000/api/v1";
+        const backendBase = apiBase.replace(/\/api\/v1$/, "");
+        return `${backendBase}${note.attachment_url}`;
+    };
+
+    const openFilePicker = () => {
+        fileInputRef.current?.click();
+    };
 
     useEffect(() => {
         fetchInitialData();
@@ -60,21 +73,25 @@ export default function NotesListing() {
             return;
         }
         const content = editorRef.current?.innerHTML || "";
-        if (!content.trim() || content === "<p>Start drafting your high-fidelity academic notes here...</p>") {
-            setAlert({ message: "Document content cannot be empty", type: "error" });
+        const isPlaceholder = content === "<p>Start drafting your high-fidelity academic notes here...</p>";
+        if ((!content.trim() || isPlaceholder) && !attachmentFile && !currentNote?.attachment_url) {
+            setAlert({ message: "Add note content or attach a file", type: "error" });
             setTimeout(() => setAlert(null), 4000);
             return;
         }
 
         setIsSaving(true);
         try {
-            const payload = {
-                title: noteTitle,
-                content: content,
-                class_id: selectedClassId,
-                visibility: visibility,
-                collaboration_mode: collaborationMode
-            };
+            const payload = new FormData();
+            payload.append("title", noteTitle);
+            payload.append("content", isPlaceholder ? "" : content);
+            payload.append("class_id", selectedClassId || "");
+            payload.append("visibility", visibility);
+            payload.append("collaboration_mode", collaborationMode);
+
+            if (attachmentFile) {
+                payload.append("attachment", attachmentFile);
+            }
 
             if (currentNote) {
                 await noteService.updateNote(currentNote._id, payload);
@@ -88,6 +105,7 @@ export default function NotesListing() {
             setSelectedClassId(null);
             setVisibility("personal");
             setCollaborationMode("readonly");
+            setAttachmentFile(null);
             fetchInitialData(); // Refresh list
         } catch (error) {
             console.error("Failed to publish/update note:", error);
@@ -107,6 +125,7 @@ export default function NotesListing() {
         setSelectedClassId(note.class_id);
         setVisibility(note.visibility || (note.class_id ? "public" : "personal"));
         setCollaborationMode(note.collaboration_mode || "readonly");
+        setAttachmentFile(null);
         setIsEditorOpen(true);
         // Delay to ensure DOM is ready
         setTimeout(() => {
@@ -122,6 +141,7 @@ export default function NotesListing() {
         setSelectedClassId(null);
         setVisibility("personal");
         setCollaborationMode("readonly");
+        setAttachmentFile(null);
         setIsEditorOpen(true);
         // Delay to ensure DOM is ready for the contentEditable ref
         setTimeout(() => {
@@ -368,6 +388,27 @@ export default function NotesListing() {
                         <div className="flex flex-col space-y-0">
                             <label className="text-[11px] font-black uppercase tracking-[0.4em] text-primary/60 text-center mb-6">Content Fragment</label>
 
+                            <div className="flex items-center justify-center mb-4 gap-3">
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    className="hidden"
+                                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.txt"
+                                    onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="h-10 px-4 text-[10px] font-bold uppercase tracking-widest"
+                                    onClick={openFilePicker}
+                                >
+                                    <Paperclip size={14} /> Upload File
+                                </Button>
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground max-w-[280px] truncate">
+                                    {attachmentFile ? attachmentFile.name : (currentNote?.attachment_name || "No file selected")}
+                                </span>
+                            </div>
+
                             <div className="flex flex-col border border-border rounded-xl bg-white/5 shadow-2xl overflow-hidden transition-all focus-within:ring-2 focus-within:ring-primary/20">
                                 <EditorToolbar
                                     onCommand={handleCommand}
@@ -464,6 +505,15 @@ export default function NotesListing() {
                                                 <span>By {note.uploaded_by?.name || "Unknown"}</span>
                                                 <span className="opacity-30">•</span>
                                                 <span>{new Date(note.createdAt).toLocaleDateString()}</span>
+                                                {note.attachment_name && (
+                                                    <>
+                                                        <span className="opacity-30">•</span>
+                                                        <span className="flex items-center gap-1 text-primary/80">
+                                                            <Paperclip size={12} />
+                                                            {note.attachment_name}
+                                                        </span>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -478,6 +528,18 @@ export default function NotesListing() {
                                         >
                                             <Download size={14} /> Get Fragment
                                         </Button>
+                                        {note.attachment_url && (
+                                            <Button
+                                                variant="outline"
+                                                className="h-9 text-[10px] font-black uppercase tracking-widest px-4 border-border hover:border-foreground/30"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    window.open(getAttachmentUrl(note), "_blank");
+                                                }}
+                                            >
+                                                <Paperclip size={14} /> Open File
+                                            </Button>
+                                        )}
                                         <Button
                                             variant="ghost"
                                             className="h-9 w-9 p-0 hover:bg-muted border border-transparent hover:border-border"

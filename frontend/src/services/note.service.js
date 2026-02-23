@@ -2,7 +2,12 @@ import api from "./api";
 
 export const noteService = {
     createNote: async (noteData) => {
-        const response = await api.post("/notes", noteData);
+        const isFormData = typeof FormData !== "undefined" && noteData instanceof FormData;
+        const response = await api.post("/notes", noteData, isFormData ? {
+            headers: {
+                "Content-Type": "multipart/form-data"
+            }
+        } : undefined);
         return response.data;
     },
 
@@ -17,7 +22,12 @@ export const noteService = {
     },
 
     updateNote: async (noteId, noteData) => {
-        const response = await api.put(`/notes/${noteId}`, noteData);
+        const isFormData = typeof FormData !== "undefined" && noteData instanceof FormData;
+        const response = await api.put(`/notes/${noteId}`, noteData, isFormData ? {
+            headers: {
+                "Content-Type": "multipart/form-data"
+            }
+        } : undefined);
         return response.data;
     },
 

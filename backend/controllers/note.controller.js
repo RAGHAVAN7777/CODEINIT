@@ -1,18 +1,30 @@
 import Note from "../models/Note.js";
 import Class from "../models/Class.js";
 import Notification from "../models/Notification.js";
+import fs from "fs";
+import path from "path";
+
+const removeAttachmentFile = (attachmentUrl) => {
+  if (!attachmentUrl) return;
+  const relativeFilePath = attachmentUrl.replace(/^\//, "");
+  const absoluteFilePath = path.resolve(relativeFilePath);
+  if (fs.existsSync(absoluteFilePath)) {
+    fs.unlinkSync(absoluteFilePath);
+  }
+};
 
 //
 // 🟢 CREATE NOTE (Personal or Class)
 //
 export const createNote = async (req, res) => {
   try {
-    const { title, content, class_id, visibility, collaboration_mode } = req.body;
+    const { title, content, visibility, collaboration_mode } = req.body;
+    const class_id = req.body.class_id && req.body.class_id !== "null" ? req.body.class_id : null;
 
-    if (!title || !content) {
+    if (!title || (!content && !req.file)) {
       return res.status(400).json({
         success: false,
-        message: "Title and content are required"
+        message: "Title and either content or attachment are required"
       });
     }
 
@@ -63,11 +75,15 @@ export const createNote = async (req, res) => {
 
     const note = await Note.create({
       title,
-      content,
+      content: content || "",
       class_id: class_id || null,
       uploaded_by: req.user._id,
       visibility: finalVisibility,
-      collaboration_mode: collaboration_mode || "readonly"
+      collaboration_mode: collaboration_mode || "readonly",
+      attachment_url: req.file ? `/uploads/${req.file.filename}` : null,
+      attachment_name: req.file ? req.file.originalname : null,
+      attachment_mime: req.file ? req.file.mimetype : null,
+      attachment_size: req.file ? req.file.size : null
     });
 
     // Create notifications for class notes
@@ -288,7 +304,7 @@ export const updateNote = async (req, res) => {
         });
       }
       // Non-owners can only update content
-      if (visibility || collaboration_mode || title) {
+      if (visibility || collaboration_mode || title || req.file) {
         return res.status(403).json({
           success: false,
           message: "Only the owner can update settings"
@@ -300,6 +316,14 @@ export const updateNote = async (req, res) => {
     if (content) note.content = content;
     if (visibility && isOwner) note.visibility = visibility;
     if (collaboration_mode && isOwner) note.collaboration_mode = collaboration_mode;
+
+    if (req.file && isOwner) {
+      removeAttachmentFile(note.attachment_url);
+      note.attachment_url = `/uploads/${req.file.filename}`;
+      note.attachment_name = req.file.originalname;
+      note.attachment_mime = req.file.mimetype;
+      note.attachment_size = req.file.size;
+    }
 
     await note.save();
 
@@ -335,6 +359,7 @@ export const deleteNote = async (req, res) => {
       });
     }
 
+    removeAttachmentFile(note.attachment_url);
     await note.deleteOne();
 
     res.json({

@@ -11,7 +11,7 @@ const noteSchema = new mongoose.Schema(
 
     content: {
       type: String,
-      required: true
+      default: ""
     },
 
     class_id: {
@@ -36,6 +36,26 @@ const noteSchema = new mongoose.Schema(
       type: String,
       enum: ["readonly", "editable"],
       default: "readonly"
+    },
+
+    attachment_url: {
+      type: String,
+      default: null
+    },
+
+    attachment_name: {
+      type: String,
+      default: null
+    },
+
+    attachment_mime: {
+      type: String,
+      default: null
+    },
+
+    attachment_size: {
+      type: Number,
+      default: null
     }
   },
   {
