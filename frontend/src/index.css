@@ -102,7 +102,16 @@
     }
 
     .snippet-label {
-        @apply text-[9px] font-black uppercase tracking-[0.4em] text-slate-500 dark:text-slate-400;
+        @apply text-[9px] font-black uppercase tracking-[0.4em] text-slate-500 dark:text-slate-400 flex items-center gap-2;
+    }
+
+    .snippet-selector {
+        @apply bg-slate-800/80 dark:bg-slate-950/80 border border-white/10 rounded-full px-4 py-1 text-[8px] font-black uppercase tracking-[0.15em] text-slate-200 focus:ring-1 focus:ring-primary/50 cursor-pointer hover:bg-slate-900 hover:border-white/20 transition-all outline-none shadow-inner;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.6)' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 28px;
     }
 
     .snippet-controls {
@@ -124,7 +133,7 @@
     }
 
     .snippet-present {
-        @apply !hidden !w-full !min-h-[160px] bg-transparent text-slate-900 dark:text-slate-100 !p-10 !rounded-2xl !border-none;
+        @apply !hidden !w-full !min-h-[160px] bg-transparent text-slate-900 dark:text-slate-100 !p-10 !rounded-2xl !border-none overflow-x-auto;
     }
 
     .snippet-present.active {
@@ -136,11 +145,57 @@
     }
 
     .snippet-present .formula-text {
-        @apply text-3xl font-medium tracking-tight leading-loose italic;
+        @apply text-3xl font-medium tracking-tight leading-[1.6] italic;
     }
 
     .snippet-box:empty::before {
         content: "Enter content here...";
         @apply text-slate-400/30 italic;
+    }
+}
+
+/* 🖨️ PRINT OPTIMIZATION PROTOCOL */
+@media print {
+
+    nav,
+    aside,
+    header,
+    .print\:hidden,
+    button,
+    .flex.gap-4.items-center,
+    .flex.items-center.justify-between {
+        display: none !important;
+    }
+
+    body {
+        background: white !important;
+        color: black !important;
+    }
+
+    .Card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+    }
+
+    th,
+    td {
+        border-bottom: 1px solid #e2e8f0 !important;
+        padding: 12px 8px !important;
+        color: black !important;
+    }
+
+    .DashboardLayout {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    main {
+        padding: 0 !important;
+        margin: 0 !important;
     }
 }

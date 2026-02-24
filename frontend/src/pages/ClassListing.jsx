@@ -45,13 +45,6 @@ export default function ClassListing() {
                             {isFaculty ? "Master overview of your academic workloads" : "Your active academic journey and progress"}
                         </p>
                     </div>
-                    {isFaculty && (
-                        <div className="flex gap-3">
-                            <Button className="px-6 h-10 font-bold uppercase tracking-tighter shadow-lg shadow-primary/10">
-                                <Plus size={18} /> New Course
-                            </Button>
-                        </div>
-                    )}
                 </header>
 
                 <div className="grid grid-cols-1 gap-4">

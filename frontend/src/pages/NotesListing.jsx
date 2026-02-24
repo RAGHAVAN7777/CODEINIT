@@ -41,6 +41,10 @@ export default function NotesListing() {
     const [deleteType, setDeleteType] = useState("me"); // "me" or "all"
     const [isDeleting, setIsDeleting] = useState(false);
 
+    // Search & Filter State
+    const [searchQuery, setSearchQuery] = useState("");
+    const [filterType, setFilterType] = useState("all"); // all, personal, class, collaborative
+
     useEffect(() => {
         fetchInitialData();
     }, []);
@@ -120,8 +124,67 @@ export default function NotesListing() {
         setTimeout(() => {
             if (editorRef.current) {
                 editorRef.current.innerHTML = note.content;
+                reinitializeSnippets();
             }
         }, 100);
+    };
+
+    const reinitializeSnippets = () => {
+        if (!editorRef.current) return;
+        const containers = editorRef.current.querySelectorAll('.snippet-container');
+        containers.forEach(container => {
+            const selector = container.querySelector('.snippet-selector');
+            const toggleBtn = container.querySelector('.snippet-btn:not(.delete)');
+            const deleteBtn = container.querySelector('.snippet-btn.delete');
+            const codeBox = container.querySelector('.snippet-box');
+            const presentLayer = container.querySelector('.snippet-present');
+
+            if (!selector || !toggleBtn || !deleteBtn || !codeBox || !presentLayer) return;
+
+            // Restore language from data attribute
+            const savedLang = container.getAttribute('data-language');
+            if (savedLang) selector.value = savedLang;
+
+            selector.onchange = (e) => {
+                container.setAttribute('data-language', e.target.value);
+            };
+
+            deleteBtn.onclick = (e) => {
+                e.preventDefault();
+                container.remove();
+            };
+
+            toggleBtn.onclick = (e) => {
+                e.preventDefault();
+                const isPresenting = presentLayer.classList.toggle('active');
+                codeBox.classList.toggle('hidden');
+                const currentLang = selector.value;
+
+                if (isPresenting) {
+                    const rawText = codeBox.innerText.trim();
+                    if (currentLang === 'latex') {
+                        if (window.katex) {
+                            window.katex.render(rawText || "0", presentLayer, {
+                                throwOnError: false,
+                                displayMode: true
+                            });
+                        } else {
+                            presentLayer.innerHTML = `<div class="formula-text text-red-500 text-xs">KaTeX Engine Offline</div>`;
+                        }
+                    } else {
+                        presentLayer.innerHTML = `<pre class="text-sm font-mono p-4 bg-muted/20 rounded-lg w-full text-left">${rawText || "Fragment Empty"}</pre>`;
+                    }
+                    toggleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`;
+                    toggleBtn.title = "Edit Content Segment";
+                    selector.disabled = true;
+                } else {
+                    toggleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>`;
+                    toggleBtn.title = "Execute Preview Mode";
+                    selector.disabled = false;
+                    codeBox.focus();
+                }
+            };
+        });
     };
 
     const handleNewNote = () => {
@@ -189,6 +252,18 @@ export default function NotesListing() {
         }
     };
 
+    const filteredNotes = notes.filter(note => {
+        const matchesSearch = note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (classes.find(c => c._id === note.class_id)?.class_name || "").toLowerCase().includes(searchQuery.toLowerCase());
+
+        if (filterType === "all") return matchesSearch;
+        if (filterType === "personal") return matchesSearch && !note.class_id;
+        if (filterType === "class") return matchesSearch && note.class_id;
+        if (filterType === "collaborative") return matchesSearch && note.collaboration_mode === "editable";
+
+        return matchesSearch;
+    });
+
     const handleCommand = (cmd, val) => {
         if (editorRef.current) {
             editorRef.current.focus();
@@ -206,6 +281,7 @@ export default function NotesListing() {
                     const container = document.createElement('div');
                     container.className = 'snippet-container';
                     container.contentEditable = 'false';
+                    container.setAttribute('data-language', 'latex');
 
                     // Internal Header
                     const header = document.createElement('div');
@@ -213,7 +289,28 @@ export default function NotesListing() {
 
                     const label = document.createElement('div');
                     label.className = 'snippet-label';
-                    label.innerText = 'Academic Drafting Core';
+
+                    const selector = document.createElement('select');
+                    selector.className = 'snippet-selector';
+                    const languages = [
+                        { val: 'latex', lab: 'LaTeX (Math)' },
+                        { val: 'javascript', lab: 'Javascript' },
+                        { val: 'python', lab: 'Python' },
+                        { val: 'html', lab: 'HTML' },
+                        { val: 'css', lab: 'CSS' }
+                    ];
+                    languages.forEach(lang => {
+                        const opt = document.createElement('option');
+                        opt.value = lang.val;
+                        opt.innerText = lang.lab;
+                        selector.appendChild(opt);
+                    });
+
+                    selector.onchange = (e) => {
+                        container.setAttribute('data-language', e.target.value);
+                    };
+
+                    label.appendChild(selector);
 
                     const controls = document.createElement('div');
                     controls.className = 'snippet-controls';
@@ -221,7 +318,7 @@ export default function NotesListing() {
                     const toggleBtn = document.createElement('div');
                     toggleBtn.className = 'snippet-btn';
                     toggleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>`;
-                    toggleBtn.title = "Convert to Formula View";
+                    toggleBtn.title = "Execute Preview Mode";
 
                     const deleteBtn = document.createElement('div');
                     deleteBtn.className = 'snippet-btn delete';
@@ -241,7 +338,6 @@ export default function NotesListing() {
 
                     const presentLayer = document.createElement('div');
                     presentLayer.className = 'snippet-present';
-                    presentLayer.innerHTML = '<div class="formula-text">Converting segment...</div>';
 
                     container.appendChild(codeBox);
                     container.appendChild(presentLayer);
@@ -255,17 +351,31 @@ export default function NotesListing() {
                         e.preventDefault();
                         const isPresenting = presentLayer.classList.toggle('active');
                         codeBox.classList.toggle('hidden');
+                        const currentLang = selector.value;
 
                         if (isPresenting) {
                             const rawText = codeBox.innerText.trim();
-                            presentLayer.innerHTML = `<div class="formula-text">${rawText || "Formula Empty"}</div>`;
+
+                            if (currentLang === 'latex') {
+                                if (window.katex) {
+                                    window.katex.render(rawText || "0", presentLayer, {
+                                        throwOnError: false,
+                                        displayMode: true
+                                    });
+                                } else {
+                                    presentLayer.innerHTML = `<div class="formula-text text-red-500 text-xs">KaTeX Engine Offline</div>`;
+                                }
+                            } else {
+                                presentLayer.innerHTML = `<pre class="text-sm font-mono p-4 bg-muted/20 rounded-lg w-full text-left">${rawText || "Fragment Empty"}</pre>`;
+                            }
+
                             toggleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`;
-                            toggleBtn.title = "Edit Code Segment";
-                            label.innerText = 'Academic Result View';
+                            toggleBtn.title = "Edit Content Segment";
+                            selector.disabled = true;
                         } else {
                             toggleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>`;
-                            toggleBtn.title = "Convert to Formula View";
-                            label.innerText = 'Academic Drafting Core';
+                            toggleBtn.title = "Execute Preview Mode";
+                            selector.disabled = false;
                             codeBox.focus();
                         }
                     };
@@ -446,11 +556,27 @@ export default function NotesListing() {
                 <div className="flex gap-4 items-center mb-8">
                     <div className="relative flex-1 group">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-foreground transition-colors" />
-                        <Input placeholder="Search materials..." className="pl-10 h-10 border-border bg-muted/20" />
+                        <Input
+                            placeholder="Search materials or class names..."
+                            className="pl-10 h-10 border-border bg-muted/20"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
                     </div>
-                    <Button variant="outline" className="h-10 px-4 text-xs font-bold uppercase tracking-widest ring-1 ring-border">
-                        <Filter size={16} /> Filter
-                    </Button>
+                    <div className="flex gap-2 p-1 bg-muted/30 rounded-lg border border-border/50">
+                        {["all", "personal", "class", "collaborative"].map((type) => (
+                            <button
+                                key={type}
+                                onClick={() => setFilterType(type)}
+                                className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md transition-all ${filterType === type
+                                    ? "bg-foreground text-background shadow-lg"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                                    }`}
+                            >
+                                {type}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 <div className="space-y-4">
@@ -459,12 +585,12 @@ export default function NotesListing() {
                             <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Accessing Academic Archives...</p>
                         </div>
-                    ) : notes.length === 0 ? (
+                    ) : filteredNotes.length === 0 ? (
                         <div className="text-center p-20 border border-dashed border-border rounded-xl">
-                            <p className="text-muted-foreground uppercase text-[10px] font-black tracking-widest">No resources found in your current scope</p>
+                            <p className="text-muted-foreground uppercase text-[10px] font-black tracking-widest">No resources found matching your current filters</p>
                         </div>
                     ) : (
-                        notes.map((note) => (
+                        filteredNotes.map((note) => (
                             <Card
                                 key={note._id}
                                 onClick={() => handleOpenNote(note)}

@@ -151,8 +151,8 @@ export default function StudentDashboard() {
                                                 onClick={() => navigate(`/classes/${cls._id}`)}
                                                 className="p-5 border border-border/50 rounded-2xl bg-card hover:border-primary/30 transition-all cursor-pointer group shadow-sm relative overflow-hidden"
                                             >
-                                                <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                                                    <BookOpen size={40} />
+                                                <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] group-hover:opacity-[0.07] transition-opacity pointer-events-none">
+                                                    <BookOpen size={120} className="-rotate-12" />
                                                 </div>
 
                                                 <div className="flex justify-between items-start mb-6">
