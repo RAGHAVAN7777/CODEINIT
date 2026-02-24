@@ -34,8 +34,8 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
             className="h-full border-r border-border bg-card flex flex-col relative z-50 shadow-sm transition-all"
         >
             <div className="p-6 flex items-center gap-3">
-                <div className="w-8 h-8 bg-foreground rounded-lg flex items-center justify-center text-background font-bold">C</div>
-                {isOpen && <span className="font-bold tracking-tighter text-lg">Catalyst</span>}
+                <div className="w-8 h-8 bg-foreground rounded-lg flex items-center justify-center text-background font-bold">E</div>
+                {isOpen && <span className="font-bold tracking-tighter text-lg">EduVault</span>}
             </div>
 
             <nav className="flex-1 px-3 space-y-1">

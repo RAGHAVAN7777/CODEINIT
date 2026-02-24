@@ -66,7 +66,7 @@ export const FocusedEditor = ({ isOpen, onClose, title, children }) => {
                             <div className="flex gap-8">
                                 <div className="flex flex-col">
                                     <span className="text-[8px] font-black text-muted-foreground/40 uppercase tracking-[0.3em]">Module</span>
-                                    <span className="text-[10px] font-bold text-primary italic">Catalyst_Notes_Terminal</span>
+                                    <span className="text-[10px] font-bold text-primary italic">EduVault_Notes_Terminal</span>
                                 </div>
                                 <div className="flex flex-col">
                                     <span className="text-[8px] font-black text-muted-foreground/40 uppercase tracking-[0.3em]">Status</span>

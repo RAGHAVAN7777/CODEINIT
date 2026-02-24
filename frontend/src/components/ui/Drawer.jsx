@@ -53,7 +53,7 @@ export const Drawer = ({ isOpen, onClose, title, children }) => {
 
                         {/* Footer decoration */}
                         <div className="p-4 bg-muted/5 flex items-center justify-between border-t border-border">
-                            <span className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-[0.2em]">Catalyst Pro-Editor v4.0</span>
+                            <span className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-[0.2em]">EduVault Pro-Editor v4.0</span>
                             <div className="flex gap-1">
                                 <div className="w-8 h-1 bg-border rounded-full" />
                                 <div className="w-4 h-1 bg-primary rounded-full" />
