@@ -11,8 +11,8 @@ export default function Landing() {
         <div className="min-h-screen bg-background text-foreground">
             <nav className="flex justify-between items-center p-6 border-b border-border bg-background">
                 <div className="flex items-center gap-2 font-bold text-xl tracking-tighter">
-                    <div className="w-8 h-8 bg-foreground rounded flex items-center justify-center text-background">C</div>
-                    Campus Catalyst
+                    <div className="w-8 h-8 bg-foreground rounded flex items-center justify-center text-background">E</div>
+                    EduVault
                 </div>
                 <div className="flex items-center gap-4">
                     <button

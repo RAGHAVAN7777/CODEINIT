@@ -50,7 +50,7 @@ export default function Login() {
                 className="w-full max-w-[400px]"
             >
                 <div className="text-center mb-8">
-                    <div className="w-10 h-10 bg-foreground rounded flex items-center justify-center text-background mx-auto mb-4 font-bold">C</div>
+                    <div className="w-10 h-10 bg-foreground rounded flex items-center justify-center text-background mx-auto mb-4 font-bold">E</div>
                     <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
                     <p className="text-muted-foreground text-sm mt-1 font-normal">Choose your role and enter credentials</p>
                 </div>
