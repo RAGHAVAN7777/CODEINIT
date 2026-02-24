@@ -43,6 +43,11 @@ const noteSchema = new mongoose.Schema(
       default: null
     },
 
+    attachment_key: {
+      type: String,
+      default: null
+    },
+
     attachment_name: {
       type: String,
       default: null

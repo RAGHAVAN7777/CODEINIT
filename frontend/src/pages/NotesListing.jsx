@@ -37,6 +37,9 @@ export default function NotesListing() {
 
     const getAttachmentUrl = (note) => {
         if (!note?.attachment_url) return null;
+        if (/^https?:\/\//i.test(note.attachment_url)) {
+            return note.attachment_url;
+        }
         const apiBase = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000/api/v1";
         const backendBase = apiBase.replace(/\/api\/v1$/, "");
         return `${backendBase}${note.attachment_url}`;

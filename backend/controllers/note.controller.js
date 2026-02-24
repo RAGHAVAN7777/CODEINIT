@@ -1,16 +1,11 @@
 import Note from "../models/Note.js";
 import Class from "../models/Class.js";
 import Notification from "../models/Notification.js";
-import fs from "fs";
-import path from "path";
+import { uploadFileToBackblaze, deleteFileFromBackblaze } from "../services/backblaze.service.js";
 
-const removeAttachmentFile = (attachmentUrl) => {
-  if (!attachmentUrl) return;
-  const relativeFilePath = attachmentUrl.replace(/^\//, "");
-  const absoluteFilePath = path.resolve(relativeFilePath);
-  if (fs.existsSync(absoluteFilePath)) {
-    fs.unlinkSync(absoluteFilePath);
-  }
+const removeAttachmentFile = async (attachmentKey) => {
+  if (!attachmentKey) return;
+  await deleteFileFromBackblaze(attachmentKey);
 };
 
 //
@@ -73,6 +68,11 @@ export const createNote = async (req, res) => {
       finalVisibility = "personal";
     }
 
+    let attachment = null;
+    if (req.file) {
+      attachment = await uploadFileToBackblaze(req.file);
+    }
+
     const note = await Note.create({
       title,
       content: content || "",
@@ -80,7 +80,8 @@ export const createNote = async (req, res) => {
       uploaded_by: req.user._id,
       visibility: finalVisibility,
       collaboration_mode: collaboration_mode || "readonly",
-      attachment_url: req.file ? `/uploads/${req.file.filename}` : null,
+      attachment_url: attachment ? attachment.url : null,
+      attachment_key: attachment ? attachment.key : null,
       attachment_name: req.file ? req.file.originalname : null,
       attachment_mime: req.file ? req.file.mimetype : null,
       attachment_size: req.file ? req.file.size : null
@@ -318,8 +319,11 @@ export const updateNote = async (req, res) => {
     if (collaboration_mode && isOwner) note.collaboration_mode = collaboration_mode;
 
     if (req.file && isOwner) {
-      removeAttachmentFile(note.attachment_url);
-      note.attachment_url = `/uploads/${req.file.filename}`;
+      const uploadedAttachment = await uploadFileToBackblaze(req.file);
+      await removeAttachmentFile(note.attachment_key);
+
+      note.attachment_url = uploadedAttachment.url;
+      note.attachment_key = uploadedAttachment.key;
       note.attachment_name = req.file.originalname;
       note.attachment_mime = req.file.mimetype;
       note.attachment_size = req.file.size;
@@ -359,7 +363,7 @@ export const deleteNote = async (req, res) => {
       });
     }
 
-    removeAttachmentFile(note.attachment_url);
+    await removeAttachmentFile(note.attachment_key);
     await note.deleteOne();
 
     res.json({
