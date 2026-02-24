@@ -36,7 +36,12 @@ const noteSchema = new mongoose.Schema(
       type: String,
       enum: ["readonly", "editable"],
       default: "readonly"
-    }
+    },
+
+    hidden_for: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    }]
   },
   {
     timestamps: true // adds createdAt & updatedAt automatically

@@ -364,3 +364,49 @@ export const gradeStudent = async (req, res) => {
     });
   }
 };
+
+//
+// 🔴 REMOVE STUDENT FROM CLASS (Faculty Only)
+//
+export const removeStudent = async (req, res) => {
+  try {
+    const { classId, studentId } = req.params;
+
+    const classData = await Class.findById(classId);
+    if (!classData) {
+      return res.status(404).json({
+        success: false,
+        message: "Class not found"
+      });
+    }
+
+    // Security check: Only the owning faculty can remove students
+    if (!classData.faculty_id.equals(req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: Only the creator of this class can remove students"
+      });
+    }
+
+    // Step 1: Remove student from class record
+    classData.students = classData.students.filter(id => !id.equals(studentId));
+
+    // Step 2: Remove class from student record
+    await User.findByIdAndUpdate(studentId, {
+      $pull: { classes: classId }
+    });
+
+    await classData.save();
+
+    res.json({
+      success: true,
+      message: "Student removed from class successfully"
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};

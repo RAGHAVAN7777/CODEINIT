@@ -119,26 +119,30 @@ export const getNotes = async (req, res) => {
     let query;
 
     if (req.user.role === "faculty") {
-      // Faculty behavior:
-      // 1. Any note they uploaded (Personal OR Class)
-      // 2. Any note in a class they manage EXCEPT student-only ones
       const facultyClasses = await Class.find({ faculty_id: req.user._id }).select("_id");
       const classIds = facultyClasses.map(c => c._id);
 
       query = {
-        $or: [
-          { uploaded_by: req.user._id }, // Their own notes
-          { class_id: { $in: classIds }, visibility: "public" } // Public notes in their classes
+        $and: [
+          { hidden_for: { $ne: req.user._id } },
+          {
+            $or: [
+              { uploaded_by: req.user._id },
+              { class_id: { $in: classIds }, visibility: "public" }
+            ]
+          }
         ]
       };
     } else {
-      // Student behavior:
-      // 1. Personal notes (class_id: null)
-      // 2. Class notes in enrolled classes (both public and student-only)
       query = {
-        $or: [
-          { uploaded_by: req.user._id, class_id: null },
-          { class_id: { $in: req.user.classes } }
+        $and: [
+          { hidden_for: { $ne: req.user._id } },
+          {
+            $or: [
+              { uploaded_by: req.user._id, class_id: null },
+              { class_id: { $in: req.user.classes } }
+            ]
+          }
         ]
       };
     }
@@ -319,6 +323,7 @@ export const updateNote = async (req, res) => {
 //
 export const deleteNote = async (req, res) => {
   try {
+    const { type } = req.query; // "me" or "all"
     const note = await Note.findById(req.params.noteId);
 
     if (!note) {
@@ -328,10 +333,25 @@ export const deleteNote = async (req, res) => {
       });
     }
 
-    if (!note.uploaded_by.equals(req.user._id)) {
+    const isOwner = note.uploaded_by.equals(req.user._id);
+
+    if (type === "me") {
+      // "Delete for Me" is always allowed if you can see the note
+      // (Visibility check could be added here too, but getNotes already filters)
+      if (!note.hidden_for.some(id => id.equals(req.user._id))) {
+        note.hidden_for.push(req.user._id);
+        await note.save();
+      }
+      return res.json({ success: true, message: "Note hidden locally" });
+    }
+
+    // "Delete for Everyone"
+    const canDeleteAll = isOwner || note.collaboration_mode === "editable";
+
+    if (!canDeleteAll) {
       return res.status(403).json({
         success: false,
-        message: "Forbidden"
+        message: "Forbidden: You do not have permission to delete this note for everyone"
       });
     }
 
@@ -339,7 +359,7 @@ export const deleteNote = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Note deleted successfully"
+      message: "Note deleted for everyone"
     });
 
   } catch (error) {

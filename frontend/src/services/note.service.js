@@ -21,8 +21,8 @@ export const noteService = {
         return response.data;
     },
 
-    deleteNote: async (noteId) => {
-        const response = await api.delete(`/notes/${noteId}`);
+    deleteNote: async (noteId, deleteType = "me") => {
+        const response = await api.delete(`/notes/${noteId}`, { params: { type: deleteType } });
         return response.data;
     }
 };

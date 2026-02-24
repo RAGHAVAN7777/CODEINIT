@@ -1,26 +1,40 @@
 import React, { useState, useEffect } from "react";
-import { Search, Filter, Mail, MoreHorizontal, UserCheck, UserX, ExternalLink } from "lucide-react";
+import { Search, Filter, Mail, MoreHorizontal, UserCheck, UserX, ExternalLink, UserPlus } from "lucide-react";
 import { DashboardLayout } from "../layouts/DashboardLayout";
 import { Button } from "../components/ui/Button";
 import { Card, CardContent } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
 import { userService } from "../services/user.service";
+import { classService } from "../services/class.service";
+import { Modal } from "../components/ui/Modal";
+import { Alert } from "../components/ui/Alert";
+import { AnimatePresence } from "framer-motion";
 
 export default function StudentListing() {
     const [students, setStudents] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [myClasses, setMyClasses] = useState([]);
+    const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
+    const [selectedStudent, setSelectedStudent] = useState(null);
+    const [enrollingClassId, setEnrollingClassId] = useState("");
+    const [isEnrolling, setIsEnrolling] = useState(false);
+    const [alert, setAlert] = useState(null);
 
     useEffect(() => {
-        fetchStudents();
+        fetchData();
     }, []);
 
-    const fetchStudents = async () => {
+    const fetchData = async () => {
         setIsLoading(true);
         try {
-            const data = await userService.getAllStudents();
-            setStudents(data);
+            const [studentsData, classesData] = await Promise.all([
+                userService.getAllStudents(),
+                classService.getMyClasses()
+            ]);
+            setStudents(studentsData);
+            setMyClasses(classesData);
         } catch (error) {
-            console.error("Failed to fetch students:", error);
+            console.error("Failed to fetch data:", error);
         } finally {
             setIsLoading(false);
         }
@@ -106,6 +120,16 @@ export default function StudentListing() {
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <div className="flex justify-end gap-2 text-[#333]">
+                                                        <Button
+                                                            variant="outline"
+                                                            className="h-8 px-3 text-[10px] font-black uppercase tracking-widest border-primary/20 hover:bg-primary/10 text-primary"
+                                                            onClick={() => {
+                                                                setSelectedStudent(student);
+                                                                setIsEnrollModalOpen(true);
+                                                            }}
+                                                        >
+                                                            <UserPlus size={14} className="mr-1.5" /> Add to Class
+                                                        </Button>
                                                         <Button variant="ghost" className="h-8 w-8 p-0" title="View Profile">
                                                             <ExternalLink size={14} />
                                                         </Button>
@@ -131,6 +155,83 @@ export default function StudentListing() {
                     </div>
                 </div>
             </div>
+
+            <Modal
+                isOpen={isEnrollModalOpen}
+                onClose={() => setIsEnrollModalOpen(false)}
+                title={`Enroll ${selectedStudent?.name}`}
+            >
+                <div className="space-y-6">
+                    <div className="p-4 bg-muted/30 border border-border rounded-xl">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-4">
+                            Select Academic Section
+                        </p>
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                            {myClasses.length === 0 ? (
+                                <p className="text-center py-8 text-xs text-muted-foreground italic">No active classes found. Create a class first.</p>
+                            ) : (
+                                myClasses.map((cls) => (
+                                    <div
+                                        key={cls._id}
+                                        onClick={() => setEnrollingClassId(cls._id)}
+                                        className={`p-4 border-2 rounded-xl cursor-pointer transition-all flex items-center justify-between group ${enrollingClassId === cls._id
+                                            ? 'border-primary bg-primary/5'
+                                            : 'border-border/50 bg-card hover:border-primary/30'
+                                            }`}
+                                    >
+                                        <div>
+                                            <p className="text-sm font-bold group-hover:text-primary transition-colors">{cls.class_name}</p>
+                                            <p className="text-[10px] font-mono text-muted-foreground uppercase">{cls.class_code}</p>
+                                        </div>
+                                        <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${enrollingClassId === cls._id ? 'border-primary bg-primary' : 'border-border'
+                                            }`}>
+                                            {enrollingClassId === cls._id && <div className="h-2 w-2 rounded-full bg-white" />}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4">
+                        <Button variant="outline" onClick={() => setIsEnrollModalOpen(false)}>
+                            Abort
+                        </Button>
+                        <Button
+                            disabled={!enrollingClassId || isEnrolling}
+                            isLoading={isEnrolling}
+                            onClick={async () => {
+                                setIsEnrolling(true);
+                                try {
+                                    await classService.addStudentToClass(enrollingClassId, selectedStudent.email);
+                                    setAlert({ message: `${selectedStudent.name} successfully enrolled in ${myClasses.find(c => c._id === enrollingClassId)?.class_name}`, type: "success" });
+                                    setIsEnrollModalOpen(false);
+                                    setEnrollingClassId("");
+                                    fetchData(); // Refresh to show new enrollment counts
+                                } catch (error) {
+                                    setAlert({ message: error.response?.data?.message || "Enrollment failed", type: "error" });
+                                } finally {
+                                    setIsEnrolling(false);
+                                    setTimeout(() => setAlert(null), 5000);
+                                }
+                            }}
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 font-bold uppercase tracking-widest text-[10px]"
+                        >
+                            Execute Enrollment
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
+
+            <AnimatePresence>
+                {alert && (
+                    <Alert
+                        message={alert.message}
+                        type={alert.type}
+                        onClose={() => setAlert(null)}
+                    />
+                )}
+            </AnimatePresence>
         </DashboardLayout>
     );
 }

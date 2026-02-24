@@ -29,5 +29,15 @@ export const classService = {
     gradeStudent: async (classId, studentId, score) => {
         const response = await api.post(`/classes/${classId}/grade`, { studentId, score });
         return response.data;
+    },
+
+    addStudentToClass: async (classId, studentEmail) => {
+        const response = await api.post(`/classes/${classId}/add-student`, { student_email: studentEmail });
+        return response.data;
+    },
+
+    removeStudentFromClass: async (classId, studentId) => {
+        const response = await api.delete(`/classes/${classId}/students/${studentId}`);
+        return response.data;
     }
 };

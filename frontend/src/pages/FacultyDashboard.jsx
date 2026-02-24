@@ -162,7 +162,7 @@ export default function FacultyDashboard() {
                     </div>
                     <div className="space-y-4">
                         <h2 className="text-lg font-semibold mb-4 text-foreground">Activity Stream</h2>
-                        <AnnouncementBox />
+                        <AnnouncementBox hideAdd={true} />
                     </div>
                 </div>
             </div>

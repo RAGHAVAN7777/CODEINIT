@@ -10,9 +10,12 @@ import noteRoutes from "./routes/note.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import announcementRoutes from "./routes/announcement.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
-
+import { protect } from "./middleware/auth.middleware.js";
+import Class from "./models/Class.js";
+import User from "./models/User.js";
 
 const app = express();
+
 
 // Connect DB
 connectDB();

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Search, Filter, FileText, Download, MoreVertical, Plus, ChevronDown, Check } from "lucide-react";
+import { Search, Filter, FileText, Download, Plus, ChevronDown, Check } from "lucide-react";
 import { DashboardLayout } from "../layouts/DashboardLayout";
 import { Button } from "../components/ui/Button";
 import { Card, CardContent } from "../components/ui/Card";
@@ -11,6 +11,8 @@ import { noteService } from "../services/note.service";
 import { classService } from "../services/class.service";
 import { Alert } from "../components/ui/Alert";
 import { AnimatePresence } from "framer-motion";
+import { ConfirmationModal } from "../components/ui/ConfirmationModal";
+import { Trash2, ShieldAlert } from "lucide-react";
 
 export default function NotesListing() {
     const { user } = useAuth();
@@ -32,6 +34,12 @@ export default function NotesListing() {
     const [collaborationMode, setCollaborationMode] = useState("readonly");
     const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false);
     const [alert, setAlert] = useState(null);
+
+    // Deletion State
+    const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+    const [noteToDelete, setNoteToDelete] = useState(null);
+    const [deleteType, setDeleteType] = useState("me"); // "me" or "all"
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         fetchInitialData();
@@ -158,6 +166,27 @@ export default function NotesListing() {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
+    };
+
+    const handleDeleteNote = async () => {
+        if (!noteToDelete) return;
+        setIsDeleting(true);
+        try {
+            await noteService.deleteNote(noteToDelete._id, deleteType);
+            setAlert({
+                message: deleteType === "me" ? "Academic Fragment hidden successfully" : "Academic Fragment purged from Hub",
+                type: "success"
+            });
+            setIsConfirmDeleteOpen(false);
+            setNoteToDelete(null);
+            fetchInitialData();
+        } catch (error) {
+            console.error("Failed to delete note:", error);
+            setAlert({ message: "Purge protocol failure: Access denied or network error", type: "error" });
+        } finally {
+            setIsDeleting(false);
+            setTimeout(() => setAlert(null), 3000);
+        }
     };
 
     const handleCommand = (cmd, val) => {
@@ -441,14 +470,14 @@ export default function NotesListing() {
                                 onClick={() => handleOpenNote(note)}
                                 className="hover:border-foreground/20 transition-all cursor-pointer group shadow-sm border-border bg-card"
                             >
-                                <CardContent className="p-5 flex items-center justify-between">
-                                    <div className="flex items-center gap-6">
-                                        <div className="h-12 w-12 bg-muted rounded-md flex items-center justify-center text-muted-foreground group-hover:bg-foreground group-hover:text-background transition-colors">
-                                            <FileText size={20} />
+                                <CardContent className="!p-6 flex items-center justify-between">
+                                    <div className="flex items-center gap-8">
+                                        <div className="h-14 w-14 bg-muted rounded-xl flex items-center justify-center text-muted-foreground group-hover:bg-foreground group-hover:text-background transition-colors shrink-0">
+                                            <FileText size={24} />
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-lg group-hover:text-foreground tracking-tight">{note.title}</h3>
-                                            <div className="flex items-center gap-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
+                                            <h3 className="font-bold text-xl group-hover:text-foreground tracking-tight leading-tight">{note.title}</h3>
+                                            <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-2 h-5">
                                                 <span className="text-foreground/70 bg-muted px-2 py-0.5 rounded-sm">
                                                     {note.class_id ? (classes.find(c => c._id === note.class_id)?.class_name || "Class Note") : "Personal"}
                                                 </span>
@@ -467,10 +496,10 @@ export default function NotesListing() {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-4">
                                         <Button
                                             variant="outline"
-                                            className="h-9 text-[10px] font-black uppercase tracking-widest px-4 border-border hover:border-foreground/30"
+                                            className="h-10 text-[10px] font-black uppercase tracking-widest px-6 border-border hover:border-foreground/30 flex items-center shrink-0"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 handleDownload(note);
@@ -478,13 +507,38 @@ export default function NotesListing() {
                                         >
                                             <Download size={14} /> Get Fragment
                                         </Button>
-                                        <Button
-                                            variant="ghost"
-                                            className="h-9 w-9 p-0 hover:bg-muted border border-transparent hover:border-border"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <MoreVertical size={16} />
-                                        </Button>
+
+                                        {/* Advanced Deletion Logic */}
+                                        <div className="flex gap-2 shrink-0 ml-2 items-center">
+                                            <Button
+                                                variant="outline"
+                                                className="h-10 w-10 min-w-10 !p-0 bg-muted hover:bg-muted-foreground/10 text-muted-foreground hover:text-foreground shrink-0 flex items-center justify-center rounded-xl border-border/50"
+                                                title="Delete for Me"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setNoteToDelete(note);
+                                                    setDeleteType("me");
+                                                    setIsConfirmDeleteOpen(true);
+                                                }}
+                                            >
+                                                <Trash2 size={18} />
+                                            </Button>
+                                            {(note.uploaded_by._id === (user._id || user.id) || note.collaboration_mode === "editable") && (
+                                                <Button
+                                                    variant="outline"
+                                                    className="h-10 w-10 min-w-10 !p-0 bg-red-500/5 hover:bg-red-500/20 text-red-500 hover:text-red-600 shrink-0 flex items-center justify-center rounded-xl border-red-500/20"
+                                                    title="Delete for Everyone"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setNoteToDelete(note);
+                                                        setDeleteType("all");
+                                                        setIsConfirmDeleteOpen(true);
+                                                    }}
+                                                >
+                                                    <ShieldAlert size={18} />
+                                                </Button>
+                                            )}
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -492,6 +546,20 @@ export default function NotesListing() {
                     )}
                 </div>
             </div>
+
+            <ConfirmationModal
+                isOpen={isConfirmDeleteOpen}
+                onClose={() => setIsConfirmDeleteOpen(false)}
+                onConfirm={handleDeleteNote}
+                title={deleteType === "me" ? "Hide Access Segment?" : "Purge Fragment for All?"}
+                message={deleteType === "me"
+                    ? "This will hide this academic fragment from your current hub view. You can re-access it if shared again."
+                    : "CAUTION: This will permanently purge this fragment from the global hub for all students and faculty. This action is irreversible."
+                }
+                confirmText={deleteType === "me" ? "Hide for Me" : "Execute Global Purge"}
+                variant={deleteType === "me" ? "info" : "danger"}
+                isLoading={isDeleting}
+            />
 
             <AnimatePresence>
                 {alert && (

@@ -6,10 +6,10 @@ import { Card, CardContent } from './ui/Card';
 import { announcementService } from '../services/announcement.service';
 import { useAuth } from '../context/AuthContext';
 
-export const AnnouncementBox = ({ classId = null }) => {
+export const AnnouncementBox = ({ classId = null, hideAdd = false }) => {
     const { user } = useAuth();
-    const isFaculty = user?.role === 'faculty';
-    const canPost = isFaculty || (classId !== null); // Allow students to post in class chats
+    const isFaculty = user?.role?.toLowerCase() === "faculty";
+    const canPost = !hideAdd && (isFaculty || (classId !== null)); // Allow students to post in class chats
 
     const [announcements, setAnnouncements] = useState([]);
     const [isLoading, setIsLoading] = useState(true);

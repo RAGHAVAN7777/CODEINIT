@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Users, FileText, Settings, Plus, ChevronRight, Zap, Trash2 } from "lucide-react";
+import { ArrowLeft, Users, FileText, Settings, Plus, ChevronRight, Zap, Trash2, UserX } from "lucide-react";
 import { DashboardLayout } from "../layouts/DashboardLayout";
 import { Button } from "../components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
@@ -27,6 +27,9 @@ export default function ClassView() {
     const [gradeScore, setGradeScore] = useState("");
     const [isGrading, setIsGrading] = useState(false);
     const [alert, setAlert] = useState(null);
+    const [isConfirmKickOpen, setIsConfirmKickOpen] = useState(false);
+    const [studentToKick, setStudentToKick] = useState(null);
+    const [isKicking, setIsKicking] = useState(false);
     const isFaculty = user?.role === "faculty";
 
     useEffect(() => {
@@ -56,6 +59,26 @@ export default function ClassView() {
             setTimeout(() => setAlert(null), 5000);
         } finally {
             setIsDeleting(false);
+        }
+    };
+
+    const handleKickStudent = async () => {
+        if (!studentToKick) return;
+        setIsKicking(true);
+        try {
+            await classService.removeStudentFromClass(id, studentToKick._id);
+            setAlert({ message: `${studentToKick.name} has been removed from the class`, type: "success" });
+            setIsConfirmKickOpen(false);
+            setStudentToKick(null);
+            // Refresh class data to show updated roster
+            const data = await classService.getClassDetails(id);
+            setClassData(data);
+        } catch (error) {
+            console.error("Failed to kick student:", error);
+            setAlert({ message: "Failed to remove student", type: "error" });
+        } finally {
+            setIsKicking(false);
+            setTimeout(() => setAlert(null), 3000);
         }
     };
 
@@ -135,7 +158,7 @@ export default function ClassView() {
                             <>
                                 <Button
                                     className="text-xs px-3 h-9"
-                                    onClick={() => setAlert({ message: "Class Management Console Online", type: "info" })}
+                                    onClick={() => setIsRosterOpen(true)}
                                 >
                                     <Settings size={16} /> Manage
                                 </Button>
@@ -188,11 +211,11 @@ export default function ClassView() {
                 isLoading={isDeleting}
             />
 
-            {/* Student Roster & Ranking Modal */}
+            {/* Student Roster & Management Modal */}
             <Modal
                 isOpen={isRosterOpen}
                 onClose={() => setIsRosterOpen(false)}
-                title="Class Roster & Performance"
+                title={isFaculty ? "Class Management Console" : "Class Roster & Performance"}
             >
                 <div className="space-y-4">
                     <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest mb-4">
@@ -221,17 +244,31 @@ export default function ClassView() {
                                                 <p className="text-xs font-bold text-primary">{stats.average?.toFixed(1) || "0.0"}%</p>
                                             </div>
                                             {isFaculty && (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="h-8 text-[10px] font-black uppercase tracking-widest"
-                                                    onClick={() => {
-                                                        setSelectedStudent(student);
-                                                        setIsGradeModalOpen(true);
-                                                    }}
-                                                >
-                                                    <Zap size={12} className="text-yellow-500 mr-1" /> Add Rank
-                                                </Button>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-8 text-[10px] font-black uppercase tracking-widest"
+                                                        onClick={() => {
+                                                            setSelectedStudent(student);
+                                                            setIsGradeModalOpen(true);
+                                                        }}
+                                                    >
+                                                        <Zap size={12} className="text-yellow-500 mr-1" /> Add Rank
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-8 w-8 p-0 text-red-500 hover:bg-red-500 hover:text-white border-red-500/20"
+                                                        onClick={() => {
+                                                            setStudentToKick(student);
+                                                            setIsConfirmKickOpen(true);
+                                                        }}
+                                                        title="Kick Student"
+                                                    >
+                                                        <UserX size={14} />
+                                                    </Button>
+                                                </div>
                                             )}
                                         </div>
                                     </div>
@@ -241,6 +278,17 @@ export default function ClassView() {
                     </div>
                 </div>
             </Modal>
+
+            <ConfirmationModal
+                isOpen={isConfirmKickOpen}
+                onClose={() => setIsConfirmKickOpen(false)}
+                onConfirm={handleKickStudent}
+                title={`Kick ${studentToKick?.name}?`}
+                message={`Are you certain? This will immediately remove ${studentToKick?.name} from ${classData.class_name}. All their records for this specific class will be dissociated.`}
+                confirmText="Execute Kick"
+                cancelText="Abort"
+                isLoading={isKicking}
+            />
 
             {/* Grade Input Modal */}
             <Modal

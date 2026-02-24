@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Search, GraduationCap, FileText, Download, Play, Trophy, Clock, Plus } from "lucide-react";
+import { Search, GraduationCap, FileText, Download, Play, Trophy, Clock, Plus, BookOpen } from "lucide-react";
+import { motion } from "framer-motion";
 import { DashboardLayout } from "../layouts/DashboardLayout";
 import { Button } from "../components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
@@ -11,25 +12,6 @@ import { noteService } from "../services/note.service";
 import { useAuth } from "../context/AuthContext";
 import { AnnouncementBox } from "../components/AnnouncementBox";
 
-// ... NoteCard ...
-
-const NoteCard = ({ title, course, date }) => (
-    <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-card hover:bg-muted/30 transition-all cursor-pointer group">
-        <div className="flex items-center gap-4">
-            <div className="h-10 w-10 bg-muted rounded flex items-center justify-center text-muted-foreground group-hover:bg-foreground group-hover:text-background transition-colors">
-                <FileText size={18} />
-            </div>
-            <div>
-                <p className="text-sm font-semibold text-foreground">{title}</p>
-                <p className="text-xs text-muted-foreground">{course} • {date}</p>
-            </div>
-        </div>
-        <div className="flex items-center gap-2">
-            <Button variant="ghost" className="h-8 w-8 p-0"><Download size={14} /></Button>
-            <Button className="h-8 w-8 p-0"><Play size={14} /></Button>
-        </div>
-    </div>
-);
 
 export default function StudentDashboard() {
     const { user, studyTime } = useAuth();
@@ -40,6 +22,7 @@ export default function StudentDashboard() {
     const [classCode, setClassCode] = useState("");
     const [isJoining, setIsJoining] = useState(false);
     const [error, setError] = useState("");
+    const [recentNotes, setRecentNotes] = useState([]);
     const [notesCount, setNotesCount] = useState(0);
 
     const formatStudyTime = (minutes) => {
@@ -60,6 +43,7 @@ export default function StudentDashboard() {
                 noteService.getNotes()
             ]);
             setClasses(classesData);
+            setRecentNotes(notesData.slice(0, 5)); // Keep latest 5
             setNotesCount(notesData.length);
         } catch (error) {
             console.error("Failed to fetch dashboard data:", error);
@@ -121,17 +105,19 @@ export default function StudentDashboard() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {[
-                        { label: "Joined Classes", value: classes.length, icon: GraduationCap },
-                        { label: "Shared Notes", value: notesCount.toString(), icon: FileText },
-                        { label: "Study Time", value: formatStudyTime(studyTime), icon: Clock },
-                        { label: "Rank", value: getStudentRank(), icon: Trophy },
+                        { label: "Joined Classes", value: classes.length, icon: GraduationCap, color: "text-blue-500" },
+                        { label: "Shared Notes", value: notesCount.toString(), icon: FileText, color: "text-amber-500" },
+                        { label: "Study Time", value: formatStudyTime(studyTime), icon: Clock, color: "text-emerald-500" },
+                        { label: "Rank", value: getStudentRank(), icon: Trophy, color: "text-purple-500" },
                     ].map((stat, i) => (
-                        <Card key={i} className="p-4">
-                            <div className="flex items-center gap-3 mb-3">
-                                <div className="p-2 bg-muted rounded-md text-muted-foreground"><stat.icon size={18} /></div>
-                                <span className="text-xs font-medium text-muted-foreground uppercase">{stat.label}</span>
+                        <Card key={i} className="p-5 border-border/50 bg-card/50 backdrop-blur-sm group hover:border-primary/30 transition-all duration-300">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className={`p-2.5 bg-muted rounded-xl ${stat.color} group-hover:scale-110 transition-transform`}>
+                                    <stat.icon size={20} />
+                                </div>
+                                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">{stat.label}</span>
                             </div>
-                            <div className="text-2xl font-bold">{stat.value}</div>
+                            <div className="text-3xl font-black tracking-tighter">{stat.value}</div>
                         </Card>
                     ))}
                 </div>
@@ -142,60 +128,106 @@ export default function StudentDashboard() {
                             <CardTitle className="text-lg">My Classes</CardTitle>
                             <Button variant="ghost" className="text-xs" onClick={() => fetchData()}>Refresh</Button>
                         </CardHeader>
-                        <CardContent className="space-y-3">
+                        <CardContent>
                             {isLoading ? (
-                                <div className="flex justify-center p-8">
+                                <div className="flex justify-center p-12">
                                     <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                                 </div>
                             ) : classes.length === 0 ? (
-                                <div className="p-8 border border-dashed border-border rounded-lg text-center">
-                                    <p className="text-muted-foreground text-sm">You haven't joined any classes yet.</p>
-                                    <Button variant="outline" size="sm" className="mt-4" onClick={() => setIsJoinModalOpen(true)}>
-                                        <GraduationCap size={14} /> Join Now
+                                <div className="p-12 border border-dashed border-border rounded-2xl text-center bg-muted/20">
+                                    <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">No Active Enrollments Located</p>
+                                    <Button variant="outline" size="sm" className="mt-4 px-6 h-9 font-black uppercase tracking-widest text-[9px]" onClick={() => setIsJoinModalOpen(true)}>
+                                        <Plus size={14} /> Initiate Joining
                                     </Button>
                                 </div>
                             ) : (
-                                classes.map((cls) => {
-                                    const myGrade = cls.grades?.find(g => (g.student_id === user._id || g.student_id?._id === user._id));
-                                    return (
-                                        <div
-                                            key={cls._id}
-                                            onClick={() => navigate(`/classes/${cls._id}`)}
-                                            className="flex items-center justify-between p-4 border border-border rounded-lg bg-card hover:bg-muted/30 transition-all cursor-pointer group"
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className="h-10 w-10 bg-primary text-primary-foreground rounded flex items-center justify-center font-bold">
-                                                    {myGrade?.rank > 0 ? `#${myGrade.rank}` : cls.class_name.charAt(0).toUpperCase()}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {classes.map((cls) => {
+                                        const myGrade = cls.grades?.find(g => (g.student_id === user._id || g.student_id?._id === user._id));
+                                        return (
+                                            <motion.div
+                                                key={cls._id}
+                                                whileHover={{ y: -4, scale: 1.02 }}
+                                                onClick={() => navigate(`/classes/${cls._id}`)}
+                                                className="p-5 border border-border/50 rounded-2xl bg-card hover:border-primary/30 transition-all cursor-pointer group shadow-sm relative overflow-hidden"
+                                            >
+                                                <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                                                    <BookOpen size={40} />
                                                 </div>
-                                                <div>
-                                                    <p className="text-sm font-semibold text-foreground">{cls.class_name}</p>
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <span className="text-[10px] text-muted-foreground uppercase font-black">ID:</span>
-                                                        <span className="bg-muted px-1.5 py-0.5 rounded text-[10px] text-foreground font-mono font-bold border border-border/30">
-                                                            {cls.class_code}
-                                                        </span>
+
+                                                <div className="flex justify-between items-start mb-6">
+                                                    <div className="px-2.5 py-1 bg-muted border border-border/50 rounded-lg text-[9px] font-black uppercase tracking-widest text-foreground/70">
+                                                        {cls.class_code}
+                                                    </div>
+                                                    {myGrade?.rank > 0 && (
+                                                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-purple-500/10 text-purple-500 rounded-full border border-purple-500/20">
+                                                            <Trophy size={10} />
+                                                            <span className="text-[9px] font-black uppercase">Rank #{myGrade.rank}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <h3 className="font-black text-lg mb-4 group-hover:text-primary transition-colors leading-tight">
+                                                    {cls.class_name}
+                                                </h3>
+
+                                                <div className="flex items-center justify-between pt-4 border-t border-border/30">
+                                                    <div className="space-y-0.5">
+                                                        <p className="text-[8px] text-muted-foreground font-black uppercase tracking-widest">Performance</p>
+                                                        <p className="text-sm font-black text-foreground">{myGrade?.average?.toFixed(1) || "0.0"}%</p>
+                                                    </div>
+                                                    <div className="h-8 w-8 bg-muted rounded-full flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-background transition-all">
+                                                        <Plus size={14} />
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div className="flex items-center gap-4">
-                                                {myGrade && (
-                                                    <div className="text-right mr-4">
-                                                        <p className="text-[10px] text-muted-foreground uppercase font-black">Performance</p>
-                                                        <p className="text-xs font-bold text-primary">{myGrade.average?.toFixed(1) || "0.0"}%</p>
-                                                    </div>
-                                                )}
-                                                <Button variant="outline" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    Open
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    );
-                                })
+                                            </motion.div>
+                                        );
+                                    })}
+                                </div>
                             )}
                         </CardContent>
                     </Card>
 
-                    <AnnouncementBox />
+                    <div className="lg:col-span-1 space-y-8">
+                        <AnnouncementBox hideAdd={true} />
+
+                        <Card className="border-border/50 bg-card/30 backdrop-blur-sm">
+                            <CardHeader className="pb-4">
+                                <div className="flex items-center justify-between">
+                                    <CardTitle className="text-sm font-black uppercase tracking-widest text-primary/60">Recent Research Fragments</CardTitle>
+                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-primary/10" onClick={() => navigate('/notes')}><Plus size={14} /></Button>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                {isLoading ? (
+                                    <div className="h-10 w-full animate-pulse bg-muted rounded-lg" />
+                                ) : recentNotes.length === 0 ? (
+                                    <p className="text-[10px] text-center py-4 text-muted-foreground uppercase font-bold">No fragments located</p>
+                                ) : (
+                                    recentNotes.map((note) => (
+                                        <div
+                                            key={note._id}
+                                            onClick={() => navigate('/notes')}
+                                            className="group flex items-center justify-between p-3 rounded-xl border border-border/30 bg-card/50 hover:border-primary/20 transition-all cursor-pointer"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-8 w-8 bg-muted rounded-lg flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
+                                                    <FileText size={14} />
+                                                </div>
+                                                <div className="overflow-hidden">
+                                                    <p className="text-[11px] font-bold text-foreground truncate max-w-[120px]">{note.title}</p>
+                                                    <p className="text-[9px] text-muted-foreground uppercase font-black tracking-tighter">
+                                                        {new Date(note.createdAt).toLocaleDateString()}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="h-2 w-2 rounded-full bg-primary/20 group-hover:bg-primary transition-colors" />
+                                        </div>
+                                    ))
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
             </div>
 

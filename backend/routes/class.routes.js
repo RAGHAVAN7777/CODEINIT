@@ -6,6 +6,7 @@ import {
   getMyClasses,
   joinClass,
   deleteClass,
+  removeStudent,
   gradeStudent
 } from "../controllers/class.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
@@ -19,6 +20,7 @@ router.get("/:classId", protect, getClass);
 router.post("/join", protect, joinClass);
 router.get("/", protect, getMyClasses);
 router.delete("/:classId", protect, isFaculty, deleteClass);
+router.delete("/:classId/students/:studentId", protect, isFaculty, removeStudent);
 router.post("/:classId/grade", protect, isFaculty, gradeStudent);
 
 export default router;
