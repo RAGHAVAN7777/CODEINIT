@@ -19,5 +19,10 @@ export const userService = {
     revokeStudent: async (id) => {
         const response = await api.delete(`/users/${id}`);
         return response.data;
+    },
+
+    searchStudents: async (query) => {
+        const response = await api.get(`/users/search?query=${encodeURIComponent(query)}`);
+        return response.data;
     }
 };

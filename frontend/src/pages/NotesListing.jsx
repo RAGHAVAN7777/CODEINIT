@@ -12,7 +12,8 @@ import { classService } from "../services/class.service";
 import { Alert } from "../components/ui/Alert";
 import { AnimatePresence } from "framer-motion";
 import { ConfirmationModal } from "../components/ui/ConfirmationModal";
-import { Trash2, ShieldAlert } from "lucide-react";
+import { Trash2, ShieldAlert, Share2 } from "lucide-react";
+import { ShareModal } from "../components/ui/ShareModal";
 
 export default function NotesListing() {
     const { user } = useAuth();
@@ -40,6 +41,8 @@ export default function NotesListing() {
     const [noteToDelete, setNoteToDelete] = useState(null);
     const [deleteType, setDeleteType] = useState("me"); // "me" or "all"
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isSharingModalOpen, setIsSharingModalOpen] = useState(false);
+    const [sharingNote, setSharingNote] = useState(null);
 
     // Search & Filter State
     const [searchQuery, setSearchQuery] = useState("");
@@ -249,6 +252,27 @@ export default function NotesListing() {
         } finally {
             setIsDeleting(false);
             setTimeout(() => setAlert(null), 3000);
+        }
+    };
+
+    const handleShareOpen = (note) => {
+        setSharingNote(note);
+        setIsSharingModalOpen(true);
+    };
+
+    const handleShareExecute = async (payload) => {
+        if (!sharingNote) return;
+        try {
+            const response = await noteService.shareNote(sharingNote._id, payload);
+            setAlert({ message: response.message || "Fragment shared successfully", type: "success" });
+            fetchInitialData();
+        } catch (error) {
+            console.error("Sharing failed:", error);
+            console.dir(error);
+            const msg = error.response?.data?.message || "Sharing Refused: Protocol Parity Error";
+            setAlert({ message: msg, type: "error" });
+        } finally {
+            setTimeout(() => setAlert(null), 5000);
         }
     };
 
@@ -612,6 +636,11 @@ export default function NotesListing() {
                                                         Learners Only
                                                     </span>
                                                 )}
+                                                {note.shared_with?.some(id => (id._id || id) === (user._id || user.id)) && note.uploaded_by?._id !== (user._id || user.id) && (
+                                                    <span className="text-indigo-500 bg-indigo-500/10 px-2 py-0.5 rounded-sm flex items-center gap-1 border border-indigo-500/20 animate-pulse font-black">
+                                                        Shared with you
+                                                    </span>
+                                                )}
                                                 <span className={`${note.collaboration_mode === 'editable' ? 'text-green-500 bg-green-500/10' : 'text-primary/70 bg-muted'} px-2 py-0.5 rounded-sm border border-transparent`}>
                                                     {note.collaboration_mode === 'editable' ? 'Collaborative' : 'Read-Only'}
                                                 </span>
@@ -633,6 +662,21 @@ export default function NotesListing() {
                                         >
                                             <Download size={14} /> Get Fragment
                                         </Button>
+
+                                        {/* Peer-to-Peer Sharing Trigger - Owner Only */}
+                                        {note.uploaded_by?._id === (user._id || user.id) && (
+                                            <Button
+                                                variant="outline"
+                                                className="h-10 w-10 min-w-10 !p-0 bg-primary/5 hover:bg-primary/10 text-primary shrink-0 flex items-center justify-center rounded-xl border-primary/20"
+                                                title="Initiate Academic Exchange"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleShareOpen(note);
+                                                }}
+                                            >
+                                                <Share2 size={18} />
+                                            </Button>
+                                        )}
 
                                         {/* Advanced Deletion Logic */}
                                         <div className="flex gap-2 shrink-0 ml-2 items-center">
@@ -696,6 +740,14 @@ export default function NotesListing() {
                     />
                 )}
             </AnimatePresence>
+
+            {/* Peer-to-Peer Exchange Modal */}
+            <ShareModal
+                isOpen={isSharingModalOpen}
+                onClose={() => setIsSharingModalOpen(false)}
+                onShare={handleShareExecute}
+                noteTitle={sharingNote?.title || "Academic Fragment"}
+            />
         </DashboardLayout>
     );
 }

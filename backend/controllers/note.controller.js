@@ -1,6 +1,7 @@
 import Note from "../models/Note.js";
 import Class from "../models/Class.js";
 import Notification from "../models/Notification.js";
+import User from "../models/User.js";
 
 //
 // 🟢 CREATE NOTE (Personal or Class)
@@ -128,7 +129,8 @@ export const getNotes = async (req, res) => {
           {
             $or: [
               { uploaded_by: req.user._id },
-              { class_id: { $in: classIds }, visibility: "public" }
+              { class_id: { $in: classIds }, visibility: "public" },
+              { shared_with: req.user._id }
             ]
           }
         ]
@@ -140,7 +142,8 @@ export const getNotes = async (req, res) => {
           {
             $or: [
               { uploaded_by: req.user._id, class_id: null },
-              { class_id: { $in: req.user.classes } }
+              { class_id: { $in: req.user.classes } },
+              { shared_with: req.user._id }
             ]
           }
         ]
@@ -219,7 +222,7 @@ export const getNote = async (req, res) => {
         }
       }
 
-      if (!isOwner && !inClass && !isClassFaculty) {
+      if (!isOwner && !inClass && !isClassFaculty && !note.shared_with.some(id => id.equals(req.user._id))) {
         return res.status(403).json({
           success: false,
           message: "Forbidden: Access denied"
@@ -367,5 +370,75 @@ export const deleteNote = async (req, res) => {
       success: false,
       message: error.message
     });
+  }
+};
+
+//
+// 🟢 SHARE NOTE (Peer-to-Peer)
+//
+export const shareNote = async (req, res) => {
+  try {
+    const { userIds, email } = req.body;
+    const { noteId } = req.params;
+    console.log(`[SHARE_PROTOCOL] Attempting share for note: ${noteId} with email: ${email} and ids: ${userIds}`);
+
+    const note = await Note.findById(noteId);
+    if (!note) {
+      return res.status(404).json({ success: false, message: "Note not found" });
+    }
+
+    // Only owner can share
+    if (!note.uploaded_by.equals(req.user._id)) {
+      return res.status(403).json({ success: false, message: "Only the owner can share this fragment" });
+    }
+
+    let targetUserIds = [...(userIds || [])];
+
+    // If an email is provided manually, resolve it to an ID
+    if (email) {
+      const userByEmail = await User.findOne({ email: email.toLowerCase().trim() });
+      if (!userByEmail) {
+        return res.status(404).json({
+          success: false,
+          message: `Colleague with email "${email}" not located in the academic registry`
+        });
+      }
+      if (!targetUserIds.includes(userByEmail._id.toString())) {
+        targetUserIds.push(userByEmail._id.toString());
+      }
+    }
+
+    if (targetUserIds.length === 0) {
+      return res.status(400).json({ success: false, message: "No recipients specified" });
+    }
+
+    // Add unique users to shared_with
+    let count = 0;
+    for (const userId of targetUserIds) {
+      if (!note.shared_with.some(existingId => existingId.toString() === userId)) {
+        note.shared_with.push(userId);
+        count++;
+      }
+    }
+
+    if (count > 0) {
+      await note.save();
+
+      // Notifications
+      const notifications = targetUserIds.map(userId => ({
+        recipient: userId,
+        sender: req.user._id,
+        title: "Peer Protocol: Fragment Received",
+        message: `${req.user.name} shared an academic fragment with you: ${note.title}`,
+        type: "note_shared",
+        link: `/notes`
+      }));
+
+      await Notification.insertMany(notifications);
+    }
+
+    res.json({ success: true, message: `Note shared with ${count} new recipients` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };

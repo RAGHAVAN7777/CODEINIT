@@ -24,5 +24,10 @@ export const noteService = {
     deleteNote: async (noteId, deleteType = "me") => {
         const response = await api.delete(`/notes/${noteId}`, { params: { type: deleteType } });
         return response.data;
+    },
+
+    shareNote: async (noteId, payload) => {
+        const response = await api.post(`/notes/${noteId}/share`, typeof payload === 'object' ? payload : { userIds: payload });
+        return response.data;
     }
 };

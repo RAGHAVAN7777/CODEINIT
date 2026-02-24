@@ -41,6 +41,11 @@ const noteSchema = new mongoose.Schema(
     hidden_for: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "User"
+    }],
+
+    shared_with: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
     }]
   },
   {
@@ -55,6 +60,7 @@ const noteSchema = new mongoose.Schema(
 // For your main $or query
 noteSchema.index({ uploaded_by: 1 });
 noteSchema.index({ class_id: 1 });
+noteSchema.index({ shared_with: 1 });
 
 // For sorting newest first
 noteSchema.index({ createdAt: -1 });

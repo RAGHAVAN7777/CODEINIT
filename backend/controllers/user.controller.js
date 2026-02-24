@@ -101,3 +101,32 @@ export const revokeStudent = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+//
+// 🟢 SEARCH STUDENTS (For Peer-to-Peer sharing)
+//
+export const searchStudents = async (req, res) => {
+  try {
+    const { query } = req.query;
+
+    let filter = { role: "student" };
+
+    if (query && query.length >= 2) {
+      // Escape regex special characters to prevent broken queries
+      const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.$or = [
+        { name: { $regex: escapedQuery, $options: "i" } },
+        { email: { $regex: escapedQuery, $options: "i" } }
+      ];
+    }
+
+    const students = await User.find(filter)
+      .select("name email role")
+      .sort({ name: 1 })
+      .limit(20);
+
+    res.json(students);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
